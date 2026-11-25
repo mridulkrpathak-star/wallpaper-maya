@@ -1,1 +1,75 @@
-hello wallpaper maya!
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#10101b">
+<title>Wallpaper Maya</title>
+<style>
+:root{color-scheme:dark;--bg:#10101b;--panel:#1b1b2b;--muted:#a9a8bd;--accent:#c7a5ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#28213c,var(--bg) 58%);color:#fff;font:15px system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+header{padding:22px 18px 12px;max-width:1100px;margin:auto}header h1{margin:0;font-size:28px;letter-spacing:-1px}header p{color:var(--muted);margin:5px 0 0}
+main{max-width:1100px;margin:auto;padding:14px 18px 36px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:22px}
+.panel{background:#1b1b2bdd;border:1px solid #ffffff18;border-radius:20px;padding:18px;box-shadow:0 18px 55px #0003}
+h2{font-size:17px;margin:0 0 15px}.preview-wrap{display:flex;justify-content:center;padding:12px 0}
+canvas{width:min(100%,330px);height:auto;aspect-ratio:9/19.5;border-radius:27px;border:5px solid #ffffff20;background:#252238;box-shadow:0 20px 50px #0008}
+.modes{display:flex;gap:8px;margin-bottom:16px}.modes button,.preset{border:1px solid #ffffff24;background:#29283b;color:#fff;border-radius:12px;padding:10px 13px;cursor:pointer}.modes button.active{background:var(--accent);color:#171221;border-color:transparent;font-weight:700}
+label{display:block;color:#e8e5f1;font-size:13px;margin:14px 0 7px}input[type=text],textarea,select{width:100%;background:#11111d;color:#fff;border:1px solid #ffffff25;border-radius:11px;padding:11px;font:inherit}textarea{resize:vertical;min-height:70px}input[type=color]{width:48px;height:38px;border:0;background:none;vertical-align:middle}input[type=range]{width:100%;accent-color:var(--accent)}
+.presets{display:flex;flex-wrap:wrap;gap:8px}.preset{padding:8px 11px;font-size:13px}.row{display:flex;align-items:center;gap:12px}.row>*{flex:1}
+.actions{display:flex;gap:10px;margin-top:20px}.actions button{flex:1;border:0;border-radius:12px;padding:13px;font-weight:700;cursor:pointer}.primary{background:var(--accent);color:#171221}.secondary{background:#333149;color:white}
+.hint{font-size:12px;color:var(--muted);line-height:1.5;margin-top:12px}
+@media(max-width:760px){main{grid-template-columns:1fr;padding:10px 13px 28px}header{padding:18px 15px 8px}.panel{padding:15px}.preview-wrap{padding:5px 0}canvas{width:min(78vw,300px)}}
+</style>
+</head>
+<body>
+<header><h1>✦ Wallpaper Maya</h1><p>Your screen. Your style. Your creation.</p></header>
+<main>
+<section class="panel">
+<h2>Live preview</h2>
+<div class="modes"><button id="homeBtn" class="active" type="button">Home screen</button><button id="lockBtn" type="button">Lock screen</button></div>
+<div class="preview-wrap"><canvas id="wallpaper" width="900" height="1950"></canvas></div>
+<div class="hint">Preview updates as you edit. Download your design as a high-resolution PNG.</div>
+</section>
+<section class="panel">
+<h2>Wallpaper studio</h2>
+<label>Choose a mood</label><div class="presets">
+<button class="preset" data-a="#25164a" data-b="#e08ca8">Dreamy</button><button class="preset" data-a="#0d3b46" data-b="#5ec5a8">Ocean</button><button class="preset" data-a="#351b16" data-b="#e6a45e">Sunset</button><button class="preset" data-a="#101827" data-b="#647da8">Midnight</button><button class="preset" data-a="#30203d" data-b="#b9a2d8">Lavender</button>
+</div>
+<label for="titleText">Main text</label><input id="titleText" type="text" maxlength="32" value="Make today beautiful">
+<label for="subText">Small text / quote</label><textarea id="subText" maxlength="100">A little progress every day.</textarea>
+<label>Background colours</label><div class="row"><div><small>Top</small><br><input id="colorA" type="color" value="#25164a"></div><div><small>Bottom</small><br><input id="colorB" type="color" value="#e08ca8"></div></div>
+<label for="photo">Add your own photo</label><input id="photo" type="file" accept="image/*">
+<label for="overlay">Photo / gradient balance</label><input id="overlay" type="range" min="0" max="100" value="65">
+<label for="textSize">Text size</label><input id="textSize" type="range" min="36" max="100" value="66">
+<label for="position">Text position</label><select id="position"><option value="middle">Middle</option><option value="upper">Upper third</option><option value="lower">Lower third</option></select>
+<div class="actions"><button class="secondary" id="resetBtn" type="button">Reset</button><button class="primary" id="downloadBtn" type="button">↓ Download PNG</button></div>
+<p class="hint">Tip: Lock-screen designs leave more breathing room near the top for your clock. Home-screen designs keep the text a little quieter so your app icons stay visible.</p>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id),canvas=$('wallpaper'),ctx=canvas.getContext('2d');
+let mode='home',photo=null;
+function draw(){
+ const w=canvas.width,h=canvas.height,a=$('colorA').value,b=$('colorB').value;
+ const g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,a);g.addColorStop(1,b);ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+ if(photo){const scale=Math.max(w/photo.width,h/photo.height),pw=photo.width*scale,ph=photo.height*scale;ctx.save();ctx.globalAlpha=Number($('overlay').value)/100;ctx.drawImage(photo,(w-pw)/2,(h-ph)/2,pw,ph);ctx.restore();ctx.fillStyle='rgba(10,8,22,.22)';ctx.fillRect(0,0,w,h)}
+ const title=$('titleText').value,sub=$('subText').value,size=Number($('textSize').value)*1.5;
+ let y=$('position').value==='upper'?h*.31:$('position').value==='lower'?h*.69:mode==='lock'?h*.55:h*.49;
+ ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor='rgba(0,0,0,.35)';ctx.shadowBlur=22;ctx.fillStyle='#fff';
+ ctx.font='600 '+size+'px system-ui';wrap(title,w*.78,y,size*1.18);
+ ctx.shadowBlur=10;ctx.font='400 36px system-ui';wrap(sub,w*.75,y+size*1.55,50);
+ ctx.shadowBlur=0;
+ if(mode==='lock'){ctx.fillStyle='rgba(255,255,255,.85)';ctx.font='300 100px system-ui';ctx.fillText('9:41',w/2,h*.13);ctx.font='32px system-ui';ctx.fillText('MONDAY  •  YOUR DAY',w/2,h*.18)}
+}
+function wrap(text,maxWidth,y,lineH){const words=text.split(/\s+/);let line='',lines=[];for(const word of words){const test=line?line+' '+word:word;if(ctx.measureText(test).width>maxWidth&&line){lines.push(line);line=word}else line=test}if(line)lines.push(line);lines.forEach((l,i)=>ctx.fillText(l,canvas.width/2,y+(i-(lines.length-1)/2)*lineH))}
+function setMode(m){mode=m;$('homeBtn').classList.toggle('active',m==='home');$('lockBtn').classList.toggle('active',m==='lock');draw()}
+['titleText','subText','colorA','colorB','overlay','textSize','position'].forEach(id=>$(id).addEventListener('input',draw));
+$('homeBtn').onclick=()=>setMode('home');$('lockBtn').onclick=()=>setMode('lock');
+document.querySelectorAll('.preset').forEach(btn=>btn.onclick=()=>{$('colorA').value=btn.dataset.a;$('colorB').value=btn.dataset.b;draw()});
+$('photo').onchange=e=>{const f=e.target.files[0];if(!f)return;const img=new Image();img.onload=()=>{photo=img;draw()};img.src=URL.createObjectURL(f)};
+$('resetBtn').onclick=()=>{photo=null;$('photo').value='';$('titleText').value='Make today beautiful';$('subText').value='A little progress every day.';$('colorA').value='#25164a';$('colorB').value='#e08ca8';$('overlay').value=65;$('textSize').value=66;$('position').value='middle';setMode('home')};
+$('downloadBtn').onclick=()=>{const a=document.createElement('a');a.download='wallpaper-maya-'+mode+'.png';a.href=canvas.toDataURL('image/png');a.click()};
+draw();
+</script>
+</body>
+</html>
