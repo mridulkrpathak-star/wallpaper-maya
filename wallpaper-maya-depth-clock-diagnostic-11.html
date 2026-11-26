@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#10121a">
+<title>Wallpaper Maya — Depth Clock Test 11</title>
+<style>
+:root{color-scheme:dark;--bg:#10121a;--panel:#1b1e2b;--muted:#aeb4c7;--accent:#8069e8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#f5f5fb;font:16px system-ui,-apple-system,sans-serif}
+main{max-width:760px;margin:auto;padding:18px}
+h1{font-size:22px;margin:4px 0 8px}
+p{color:var(--muted);line-height:1.45}
+.panel{background:var(--panel);padding:16px;border-radius:16px;margin:14px 0}
+button{background:var(--accent);color:white;border:0;border-radius:11px;padding:13px 16px;font-weight:700;font-size:15px;margin:8px 6px 4px 0}
+button:disabled{opacity:.45}
+input[type=file]{max-width:100%;font-size:14px}
+canvas{display:block;width:100%;height:auto;border-radius:12px;background:#08090e}
+.small{font-size:13px;color:var(--muted)}
+label{display:block;margin:12px 0}
+input[type=range]{width:100%}
+select,input[type=text],input[type=color]{background:#292d3c;color:white;border:1px solid #555;border-radius:8px;padding:9px}
+input[type=text]{width:115px}
+#status{margin-top:12px;color:#c9c0ff;overflow-wrap:anywhere;white-space:pre-wrap}
+.metric{white-space:pre-line;font-size:14px;line-height:1.6;overflow-wrap:anywhere}
+.inline{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.inline label{margin:8px 0}
+</style>
+</head>
+<body>
+<main>
+<h1>Wallpaper Maya — Depth Clock Test 11</h1>
+<p>Standalone test only. Your main Wallpaper Maya app and index.html are not changed. Choose a photo, build the AI foreground mask, then try both clock styles.</p>
+<section class="panel">
+ <b>1. Choose your photograph</b>
+ <p class="small">Use the same photo from Diagnostic 10 for a fair comparison.</p>
+ <input id="photo" type="file" accept="image/*">
+ <div><button id="detect" disabled>Build foreground mask</button><button id="clear" disabled>Clear photo</button></div>
+ <div id="status">Choose a photo to begin.</div>
+</section>
+<section class="panel">
+ <b>2. AI foreground mask</b>
+ <div class="metric" id="stats">No segmentation yet.</div>
+ <label><input id="overlay" type="checkbox"> Show green mask preview</label>
+ <label><input id="maskOnly" type="checkbox"> Show mask only</label>
+ <label>Mask threshold: <span id="thresholdValue">0.35</span>
+  <input id="threshold" type="range" min="10" max="85" value="35">
+ </label>
+ <p class="small">The subject mask is now fully opaque inside the selected threshold. This should stop the clock showing through the face or body. Fine hair edges may need threshold adjustment.</p>
+</section>
+<section class="panel">
+ <b>3. Independent clock design</b>
+ <div class="inline">
+  <label>Clock style<br><select id="clockStyle"><option value="outline">Large outlined digits</option><option value="solid" selected>Solid digital clock</option></select></label>
+  <label>Clock colour<br><input id="clockColor" type="color" value="#ffffff"></label>
+  <label>Time<br><input id="clockText" type="text" value="10:08" maxlength="8"></label>
+ </div>
+ <label>Clock vertical position: <span id="clockPosValue">42</span>%
+  <input id="clockPos" type="range" min="10" max="85" value="42">
+ </label>
+ <label>Clock size: <span id="clockSizeValue">210</span> px
+  <input id="clockSize" type="range" min="60" max="420" value="210">
+ </label>
+ <label>Date text<br><input id="dateText" type="text" value="Thursday, November 26" maxlength="35"></label>
+ <label><input id="showDate" type="checkbox" checked> Show date</label>
+ <label><input id="showClock" type="checkbox" checked> Show clock</label>
+ <canvas id="view" width="640" height="900"></canvas>
+ <p class="small">Layer order: photograph → clock → AI foreground subject. The clock can be positioned independently of the person or object.</p>
+</section>
+</main>
+<script type="module">
+const $=id=>document.getElementById(id), canvas=$('view'), ctx=canvas.getContext('2d');
+let photo=null, photoUrl=null, segmenter=null, masks=[], maskW=0, maskH=0, combined=null, busy=false;
+function status(s){$('status').textContent=s}
+function displaySize(img){const scale=Math.min(640/img.naturalWidth,1100/img.naturalHeight,1);return [Math.max(1,Math.round(img.naturalWidth*scale)),Math.max(1,Math.round(img.naturalHeight*scale))]}
+function buildMaskCanvas(){
+ const out=document.createElement('canvas');out.width=maskW;out.height=maskH;
+ const o=out.getContext('2d'),d=o.createImageData(maskW,maskH),t=Number($('threshold').value)/100;
+ for(let i=0;i<combined.length;i++){const j=i*4;d.data[j]=255;d.data[j+1]=255;d.data[j+2]=255;d.data[j+3]=combined[i]>=t?255:0}
+ o.putImageData(d,0,0);return out
+}
+function drawClock(w,h){
+ if(!$('showClock').checked)return;
+ const color=$('clockColor').value, style=$('clockStyle').value, size=Number($('clockSize').value);
+ const y=h*Number($('clockPos').value)/100, time=$('clockText').value.trim()||'10:08';
+ ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineJoin='round';
+ ctx.font=`300 ${size}px system-ui,sans-serif`;
+ if(style==='outline'){
+   ctx.lineWidth=Math.max(2,size*.045);ctx.strokeStyle=color;ctx.globalAlpha=.88;
+   ctx.shadowColor='rgba(0,0,0,.20)';ctx.shadowBlur=3;
+   ctx.strokeText(time,w/2,y, w*.94);
+ }else{
+   ctx.fillStyle=color;ctx.globalAlpha=.88;ctx.shadowColor='rgba(0,0,0,.32)';ctx.shadowBlur=8;
+   ctx.fillText(time,w/2,y,w*.94);
+ }
+ if($('showDate').checked){
+   ctx.globalAlpha=.85;ctx.shadowBlur=4;ctx.fillStyle=color;
+   ctx.font=`400 ${Math.max(13,Math.round(size*.19))}px system-ui,sans-serif`;
+   ctx.fillText($('dateText').value,w/2,y+size*.72,w*.9);
+ }
+ ctx.restore()
+}
+function draw(){
+ if(!photo)return;const [w,h]=displaySize(photo);canvas.width=w;canvas.height=h;ctx.clearRect(0,0,w,h);
+ if($('maskOnly').checked&&combined){ctx.fillStyle='#111';ctx.fillRect(0,0,w,h);ctx.drawImage(buildMaskCanvas(),0,0,w,h);return}
+ ctx.drawImage(photo,0,0,w,h);drawClock(w,h);
+ if(!combined)return;
+ const mask=buildMaskCanvas(),cut=document.createElement('canvas');cut.width=maskW;cut.height=maskH;
+ const cc=cut.getContext('2d');cc.drawImage(photo,0,0,maskW,maskH);cc.globalCompositeOperation='destination-in';cc.drawImage(mask,0,0);
+ ctx.drawImage(cut,0,0,w,h);
+ if($('overlay').checked){const green=document.createElement('canvas');green.width=maskW;green.height=maskH;const g=green.getContext('2d');g.fillStyle='#00ff55';g.fillRect(0,0,maskW,maskH);g.globalCompositeOperation='destination-in';g.drawImage(mask,0,0);ctx.save();ctx.globalAlpha=.3;ctx.drawImage(green,0,0,w,h);ctx.restore()}
+}
+function updateStats(){
+ if(!combined||!photo)return;const t=Number($('threshold').value)/100;let sum=0,min=1,max=0,above=0;
+ for(const v of combined){min=Math.min(min,v);max=Math.max(max,v);sum+=v;if(v>=t)above++}
+ const n=combined.length;$('stats').textContent=`Photo: ${photo.naturalWidth} × ${photo.naturalHeight}px
+Mask: ${maskW} × ${maskH}px
+Channels: ${masks.slice(1).map(m=>m.label).join(', ')}
+Threshold: ${t.toFixed(2)}
+Confidence min / max / average: ${min.toFixed(3)} / ${max.toFixed(3)} / ${(sum/n).toFixed(3)}
+Pixels selected: ${(100*above/n).toFixed(2)}%`;draw()
+}
+function combineForeground(){
+ if(!masks.length)throw new Error('The model returned no confidence masks.');const n=masks[0].data.length,values=new Float32Array(n);
+ for(let p=0;p<n;p++){let remain=1;for(let c=1;c<masks.length;c++){const v=Math.max(0,Math.min(1,masks[c].data[p]));remain*=1-v}values[p]=1-remain}
+ combined=values;updateStats()
+}
+async function createSegmenter(){
+ if(segmenter)return segmenter;status('Loading MediaPipe library and model…');
+ const {FilesetResolver,ImageSegmenter}=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.mjs');
+ const vision=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm');
+ segmenter=await ImageSegmenter.createFromOptions(vision,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite',delegate:'CPU'},runningMode:'IMAGE',outputCategoryMask:false,outputConfidenceMasks:true,displayNamesLocale:'en'});
+ return segmenter
+}
+$('photo').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];if(!f)return;if(photoUrl)URL.revokeObjectURL(photoUrl);photoUrl=URL.createObjectURL(f);const im=new Image();im.onload=()=>{photo=im;masks=[];combined=null;$('stats').textContent='Photo loaded. Segmentation has not run yet.';$('detect').disabled=false;$('clear').disabled=false;draw();status('Photo loaded. Tap Build foreground mask.')};im.onerror=()=>status('Could not decode image. Try JPG or PNG.');im.src=photoUrl});
+$('detect').addEventListener('click',async()=>{if(!photo||busy)return;busy=true;$('detect').disabled=true;$('clear').disabled=true;$('photo').disabled=true;try{const task=await createSegmenter();status('Running AI segmentation…');const [w,h]=displaySize(photo),input=document.createElement('canvas');input.width=w;input.height=h;input.getContext('2d').drawImage(photo,0,0,w,h);const result=task.segment(input);try{const labels=typeof task.getLabels==='function'?task.getLabels():[];masks=(result.confidenceMasks||[]).map((m,i)=>({label:labels[i]||`Channel ${i}`,data:m.getAsFloat32Array().slice(),width:m.width,height:m.height}))}finally{if(result&&typeof result.close==='function')result.close()}if(masks.length<2)throw new Error(`Expected multiple confidence masks; received ${masks.length}.`);maskW=masks[0].width;maskH=masks[0].height;if(masks.some(m=>m.width!==maskW||m.height!==maskH||m.data.length!==maskW*maskH))throw new Error('Mask dimensions do not match.');combineForeground();status('Segmentation complete. Try both clock styles.')}catch(err){console.error(err);status('AI segmentation failed:\\n'+(err?.message||String(err)))}finally{busy=false;$('detect').disabled=!photo;$('clear').disabled=!photo;$('photo').disabled=false}});
+$('threshold').addEventListener('input',()=>{$('thresholdValue').textContent=(Number($('threshold').value)/100).toFixed(2);if(combined)updateStats()});
+$('clockSize').addEventListener('input',()=>{$('clockSizeValue').textContent=$('clockSize').value;draw()});
+$('clockPos').addEventListener('input',()=>{$('clockPosValue').textContent=$('clockPos').value;draw()});
+['overlay','maskOnly','clockStyle','clockColor','clockText','dateText','showDate','showClock'].forEach(id=>$(id).addEventListener('input',draw));
+$('clear').addEventListener('click',()=>{if(photoUrl)URL.revokeObjectURL(photoUrl);photoUrl=null;photo=null;masks=[];combined=null;maskW=maskH=0;canvas.width=640;canvas.height=900;ctx.clearRect(0,0,640,900);$('photo').value='';$('detect').disabled=true;$('clear').disabled=true;$('stats').textContent='No segmentation yet.';status('Photo cleared.')});
+</script>
+</body>
+</html>
