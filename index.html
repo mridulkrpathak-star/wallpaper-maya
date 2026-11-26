@@ -1,66 +1,43 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#10101b">
-<title>Wallpaper Maya</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#10101b"><title>Wallpaper Maya</title>
 <style>
-:root{color-scheme:dark;--bg:#10101b;--panel:#1b1b2b;--muted:#a9a8bd;--accent:#c7a5ff}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#28213c,var(--bg) 58%);color:#fff;font:15px system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
-header{padding:22px 18px 12px;max-width:1100px;margin:auto}header h1{margin:0;font-size:28px;letter-spacing:-1px}header p{color:var(--muted);margin:5px 0 0}
+:root{color-scheme:dark;--bg:#10101b;--panel:#1b1b2b;--muted:#aaa8bd;--accent:#c7a5ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#28213c,var(--bg) 58%);color:#fff;font:15px system-ui,sans-serif}
+header{padding:22px 18px 12px;max-width:1100px;margin:auto}header h1{margin:0;font-size:28px}header p,.hint,small{color:var(--muted)}
 main{max-width:1100px;margin:auto;padding:14px 18px 36px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:22px}
 .panel{background:#1b1b2bdd;border:1px solid #ffffff18;border-radius:20px;padding:18px;box-shadow:0 18px 55px #0003}
 h2{font-size:17px;margin:0 0 15px}.preview-wrap{display:flex;justify-content:center;padding:12px 0}
-canvas{display:block;width:min(100%,330px);height:auto;aspect-ratio:9/19.5;border-radius:27px;border:5px solid #ffffff20;background:#252238;box-shadow:0 20px 50px #0008}
-.modes{display:flex;gap:8px;margin-bottom:16px}.modes button,.preset{border:1px solid #ffffff24;background:#29283b;color:#fff;border-radius:12px;padding:10px 13px;cursor:pointer}.modes button.active{background:var(--accent);color:#171221;border-color:transparent;font-weight:700}
-label{display:block;color:#e8e5f1;font-size:13px;margin:14px 0 7px}input[type=text],input[type=number],textarea,select{width:100%;background:#11111d;color:#fff;border:1px solid #ffffff25;border-radius:11px;padding:11px;font:inherit}input[type=number]{min-width:0}textarea{resize:vertical;min-height:70px}input[type=color]{width:48px;height:38px;border:0;background:none;vertical-align:middle}input[type=range]{width:100%;accent-color:var(--accent)}
-.presets{display:flex;flex-wrap:wrap;gap:8px}.preset{padding:8px 11px;font-size:13px}.row{display:flex;align-items:center;gap:12px}.row>*{flex:1;min-width:0}
-.actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}.actions button{flex:1;min-width:100px;border:0;border-radius:12px;padding:13px;font-weight:700;cursor:pointer}.primary{background:var(--accent);color:#171221}.secondary{background:#333149;color:white}
-.hint{font-size:12px;color:var(--muted);line-height:1.5;margin-top:12px}
-small{color:var(--muted)}.tool-heading{font-weight:700;margin:20px 0 5px;color:#e6d9ff;font-size:14px}
-@media(max-width:760px){main{grid-template-columns:1fr;padding:10px 13px 28px}header{padding:18px 15px 8px}.panel{padding:15px}.preview-wrap{padding:5px 0}canvas{width:min(78vw,300px)}}
-</style>
-</head>
+canvas#wallpaper{display:block;width:min(100%,330px);height:auto;aspect-ratio:9/19.5;border-radius:27px;border:5px solid #ffffff20;background:#252238;box-shadow:0 20px 50px #0008;touch-action:none}
+.modes,.presets,.actions{display:flex;gap:8px;flex-wrap:wrap}.modes{margin-bottom:16px}
+button,.preset{border:1px solid #ffffff24;background:#29283b;color:#fff;border-radius:12px;padding:10px 13px;cursor:pointer}
+.modes button.active,.active-tool{background:var(--accent)!important;color:#171221!important}
+label{display:block;color:#e8e5f1;font-size:13px;margin:14px 0 7px}
+input[type=text],input[type=number],textarea,select{width:100%;background:#11111d;color:#fff;border:1px solid #ffffff25;border-radius:11px;padding:11px;font:inherit}
+textarea{resize:vertical;min-height:70px}input[type=color]{width:48px;height:38px;border:0;background:none;vertical-align:middle}input[type=range]{width:100%;accent-color:var(--accent)}
+.row{display:flex;align-items:center;gap:12px}.row>*{flex:1;min-width:0}.tool-heading{font-weight:700;margin:20px 0 5px;color:#e6d9ff;font-size:14px}
+.actions{margin-top:14px}.actions button{flex:1;min-width:90px;border:0;padding:12px;font-weight:700}.primary{background:var(--accent);color:#171221}.secondary{background:#333149}
+.hint{font-size:12px;line-height:1.5;margin-top:10px}.clock-box{border:1px solid #ffffff20;border-radius:14px;padding:12px;margin-top:12px}
+@media(max-width:760px){main{grid-template-columns:1fr;padding:10px 13px 28px}header{padding:18px 15px 8px}.panel{padding:15px}.preview-wrap{padding:5px 0}canvas#wallpaper{width:min(78vw,300px)}}
+</style></head>
 <body>
 <header><h1>✦ Wallpaper Maya</h1><p>Your screen. Your style. Your creation.</p></header>
 <main>
-<section class="panel">
-<h2>Live preview</h2>
-<div class="modes"><button id="homeBtn" class="active" type="button">Home screen</button><button id="lockBtn" type="button">Lock screen</button></div>
-<div class="preview-wrap"><canvas id="wallpaper" width="900" height="1950"></canvas></div>
-<div class="hint" id="dimensionNote">Preview updates as you edit. Download your design as a high-resolution PNG.</div>
+<section class="panel"><h2>Live preview</h2>
+<div class="modes"><button id="homeBtn" class="active">Home screen</button><button id="lockBtn">Lock screen</button></div>
+<div class="preview-wrap"><canvas id="wallpaper" width="1080" height="2340"></canvas></div>
+<div class="hint" id="dimensionNote">Preview updates as you edit.</div>
 </section>
-<section class="panel">
-<h2>Wallpaper studio</h2>
+<section class="panel"><h2>Wallpaper studio</h2>
 <label>Choose a mood</label><div class="presets">
-<button class="preset" data-a="#25164a" data-b="#e08ca8">Dreamy</button><button class="preset" data-a="#0d3b46" data-b="#5ec5a8">Ocean</button><button class="preset" data-a="#351b16" data-b="#e6a45e">Sunset</button><button class="preset" data-a="#101827" data-b="#647da8">Midnight</button><button class="preset" data-a="#30203d" data-b="#b9a2d8">Lavender</button>
-</div>
-
+<button class="preset" data-a="#25164a" data-b="#e08ca8">Dreamy</button><button class="preset" data-a="#0d3b46" data-b="#5ec5a8">Ocean</button><button class="preset" data-a="#351b16" data-b="#e6a45e">Sunset</button><button class="preset" data-a="#101827" data-b="#647da8">Midnight</button><button class="preset" data-a="#30203d" data-b="#b9a2d8">Lavender</button></div>
 <div class="tool-heading">Device-specific layout</div>
-<label for="devicePreset">Choose a device / screen preset</label>
-<select id="devicePreset">
-<option value="1080x2340">Android phone · 1080 × 2340</option>
-<option value="1080x2400">Android phone · 1080 × 2400</option>
-<option value="1440x3200">Android QHD+ · 1440 × 3200</option>
-<option value="1179x2556">iPhone · 1179 × 2556</option>
-<option value="1290x2796">iPhone Pro Max · 1290 × 2796</option>
-<option value="1536x2048">Tablet portrait · 1536 × 2048</option>
-<option value="2048x1536">Tablet landscape · 2048 × 1536</option>
-<option value="custom">Custom dimensions</option>
-</select>
-<div class="row">
-  <div><label for="customWidth">Width (px)</label><input id="customWidth" type="number" min="320" max="8000" value="1080"></div>
-  <div><label for="customHeight">Height (px)</label><input id="customHeight" type="number" min="320" max="8000" value="2340"></div>
-</div>
-<label for="fitMode">Photo fitting</label>
-<select id="fitMode">
-<option value="cover">Fill · cover the screen (may crop)</option>
-<option value="contain">Fit · show the whole photo</option>
-<option value="stretch">Stretch · fill without preserving proportions</option>
-</select>
-<p class="hint">Choose a preset or enter your own pixel dimensions. The downloaded PNG uses the selected dimensions.</p>
-
+<label for="devicePreset">Choose a device / screen preset</label><select id="devicePreset">
+<option value="1080x2340">Android phone · 1080 × 2340</option><option value="1080x2400">Android phone · 1080 × 2400</option><option value="1440x3200">Android QHD+ · 1440 × 3200</option><option value="1179x2556">iPhone · 1179 × 2556</option><option value="1290x2796">iPhone Pro Max · 1290 × 2796</option><option value="1536x2048">Tablet portrait · 1536 × 2048</option><option value="2048x1536">Tablet landscape · 2048 × 1536</option><option value="custom">Custom dimensions</option></select>
+<div class="row"><div><label for="customWidth">Width (px)</label><input id="customWidth" type="number" min="320" max="8000" value="1080"></div><div><label for="customHeight">Height (px)</label><input id="customHeight" type="number" min="320" max="8000" value="2340"></div></div>
+<label for="fitMode">Photo fitting</label><select id="fitMode"><option value="cover">Fill · cover the screen (may crop)</option><option value="contain">Fit · show the whole photo</option><option value="stretch">Stretch · fill without preserving proportions</option></select>
 <label for="titleText">Main text</label><input id="titleText" type="text" maxlength="32" value="Make today beautiful">
 <label for="subText">Small text / quote</label><textarea id="subText" maxlength="100">A little progress every day.</textarea>
 <label>Background colours</label><div class="row"><div><small>Top</small><br><input id="colorA" type="color" value="#25164a"></div><div><small>Bottom</small><br><input id="colorB" type="color" value="#e08ca8"></div></div>
@@ -71,66 +48,63 @@ small{color:var(--muted)}.tool-heading{font-weight:700;margin:20px 0 5px;color:#
 <label for="contrast">Contrast</label><input id="contrast" type="range" min="50" max="150" value="100">
 <label for="saturation">Saturation</label><input id="saturation" type="range" min="0" max="200" value="100">
 <label for="filter">Artistic filter</label><select id="filter"><option value="none">Original</option><option value="grayscale(1)">Black &amp; white</option><option value="sepia(1)">Vintage</option><option value="saturate(1.8)">Vivid</option><option value="hue-rotate(35deg)">Dream tint</option><option value="blur(2px)">Soft focus</option></select>
-<div class="actions"><button class="secondary" id="rotateBtn" type="button">↻ Rotate photo</button><button class="secondary" id="undoBtn" type="button">↶ Undo</button><button class="secondary" id="redoBtn" type="button">↷ Redo</button></div>
+<div class="actions"><button class="secondary" id="rotateBtn">↻ Rotate photo</button><button class="secondary" id="undoBtn">↶ Undo</button><button class="secondary" id="redoBtn">↷ Redo</button></div>
 <label for="textSize">Text size</label><input id="textSize" type="range" min="36" max="100" value="66">
 <label for="position">Text position</label><select id="position"><option value="middle">Middle</option><option value="upper">Upper third</option><option value="lower">Lower third</option></select>
-<div class="actions"><button class="secondary" id="resetBtn" type="button">Reset</button><button class="primary" id="downloadBtn" type="button">↓ Download PNG</button></div>
-<p class="hint">Tip: Lock-screen designs leave more breathing room near the top for your clock. Home-screen designs keep the text a little quieter so your app icons stay visible.</p>
-</section>
-</main>
+
+<div class="tool-heading">Lock-screen clock studio</div>
+<p class="hint">Switch to Lock screen to preview the clock. Set the clock behind parts of your photo with the depth brush below.</p>
+<label for="clockFormat">Clock format</label><select id="clockFormat"><option value="12">12-hour · 9:41</option><option value="24">24-hour · 21:41</option></select>
+<label for="clockStyle">Clock style</label><select id="clockStyle"><option value="modern">Modern</option><option value="thin">Elegant thin</option><option value="bold">Bold</option><option value="serif">Classic serif</option><option value="mono">Digital mono</option></select>
+<div class="row"><div><label for="clockColor">Clock colour</label><input id="clockColor" type="color" value="#ffffff"></div><div><label for="clockSize">Clock size</label><input id="clockSize" type="range" min="55" max="190" value="115"></div></div>
+<label for="clockPosition">Clock position</label><select id="clockPosition"><option value="top">Upper area</option><option value="upper">Upper-middle</option><option value="middle">Middle</option><option value="custom">Lower area</option></select>
+<label for="clockOffset">Fine position adjustment</label><input id="clockOffset" type="range" min="0" max="100" value="0">
+<label for="dateText">Date line</label><input id="dateText" type="text" value="MONDAY  •  YOUR DAY" maxlength="40">
+<div class="row"><div><label for="showClock">Show clock</label><select id="showClock"><option value="yes">On</option><option value="no">Off</option></select></div><div><label for="showDate">Show date</label><select id="showDate"><option value="yes">On</option><option value="no">Off</option></select></div></div>
+<div class="clock-box"><div class="tool-heading" style="margin-top:0">Depth effect · manual foreground brush</div>
+<p class="hint">Upload a photo, switch to Lock screen, tap Paint foreground, then draw over the hill/person/tree that should appear in front of the clock. This is a manual mask; automatic AI subject detection is not included yet.</p>
+<div class="actions"><button class="secondary" id="paintBtn">Paint foreground</button><button class="secondary" id="eraseBtn">Erase mask</button><button class="secondary" id="clearMaskBtn">Clear mask</button></div>
+<label for="brushSize">Brush size</label><input id="brushSize" type="range" min="12" max="180" value="65">
+<p class="hint" id="brushStatus">Brush is off. Painted areas will cover the clock with the photo.</p></div>
+
+<div class="actions"><button class="secondary" id="resetBtn">Reset</button><button class="primary" id="downloadBtn">↓ Download PNG</button></div>
+<p class="hint">Your wallpaper is rendered at the selected pixel dimensions. The downloaded PNG includes the clock and any painted depth areas.</p>
+</section></main>
 <script>
 const $=id=>document.getElementById(id),canvas=$('wallpaper'),ctx=canvas.getContext('2d');
-let mode='home',photo=null,rotation=0,history=[],future=[],restoring=false;
-function dimensions(){return {w:canvas.width,h:canvas.height}}
-function setDimensions(w,h){
-  w=Math.max(320,Math.min(8000,Math.round(Number(w)||1080)));
-  h=Math.max(320,Math.min(8000,Math.round(Number(h)||2340)));
-  canvas.width=w;canvas.height=h;canvas.style.aspectRatio=w+'/'+h;
-  $('customWidth').value=w;$('customHeight').value=h;
-  $('dimensionNote').textContent=`Preview · ${w} × ${h} px · ${ (w/h).toFixed(3) }:1 aspect ratio`;
-  draw();
-}
-function state(){return {a:$('colorA').value,b:$('colorB').value,title:$('titleText').value,sub:$('subText').value,overlay:$('overlay').value,brightness:$('brightness').value,contrast:$('contrast').value,saturation:$('saturation').value,filter:$('filter').value,textSize:$('textSize').value,position:$('position').value,rotation,fit:$('fitMode').value,w:canvas.width,h:canvas.height}}
+let mode='home',photo=null,rotation=0,mask=document.createElement('canvas'),maskCtx=mask.getContext('2d'),brushMode='off',drawing=false,history=[],future=[],restoring=false;
+function fitRect(){const w=canvas.width,h=canvas.height;if(!photo)return null;let sw=rotation%180?photo.height:photo.width,sh=rotation%180?photo.width:photo.height;let f=$('fitMode').value;let s=f==='contain'?Math.min(w/sw,h/sh):Math.max(w/sw,h/sh);return {w:photo.width*s,h:photo.height*s};}
+function setDimensions(w,h){w=Math.max(320,Math.min(8000,Math.round(+w||1080)));h=Math.max(320,Math.min(8000,Math.round(+h||2340)));canvas.width=w;canvas.height=h;mask.width=w;mask.height=h;$('customWidth').value=w;$('customHeight').value=h; $('dimensionNote').textContent=`Preview · ${w} × ${h} px · ${(w/h).toFixed(3)}:1 aspect ratio`;draw();}
+function state(){return {a:$('colorA').value,b:$('colorB').value,title:$('titleText').value,sub:$('subText').value,overlay:$('overlay').value,brightness:$('brightness').value,contrast:$('contrast').value,saturation:$('saturation').value,filter:$('filter').value,textSize:$('textSize').value,position:$('position').value,rotation,fit:$('fitMode').value,w:canvas.width,h:canvas.height,clockColor:$('clockColor').value,clockSize:$('clockSize').value,clockStyle:$('clockStyle').value,clockPosition:$('clockPosition').value,clockOffset:$('clockOffset').value,clockFormat:$('clockFormat').value,dateText:$('dateText').value,showClock:$('showClock').value,showDate:$('showDate').value}}
 function snapshot(){if(restoring)return;history.push(state());if(history.length>40)history.shift();future=[]}
-function restore(s){if(!s)return;restoring=true;$('colorA').value=s.a;$('colorB').value=s.b;$('titleText').value=s.title;$('subText').value=s.sub;$('overlay').value=s.overlay;$('brightness').value=s.brightness;$('contrast').value=s.contrast;$('saturation').value=s.saturation;$('filter').value=s.filter;$('textSize').value=s.textSize;$('position').value=s.position;$('fitMode').value=s.fit;rotation=s.rotation;setDimensions(s.w,s.h);restoring=false;draw()}
-function draw(){
- const w=canvas.width,h=canvas.height,a=$('colorA').value,b=$('colorB').value;
- const g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,a);g.addColorStop(1,b);ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
- if(photo){
-   const rotated=rotation%180!==0,sourceW=rotated?photo.height:photo.width,sourceH=rotated?photo.width:photo.height;
-   const fit=$('fitMode').value;
-   const scale=fit==='contain'?Math.min(w/sourceW,h/sourceH):Math.max(w/sourceW,h/sourceH);
-   const pw=photo.width*scale,ph=photo.height*scale;
-   ctx.save();ctx.globalAlpha=Number($('overlay').value)/100;
-   ctx.filter=`brightness(${$('brightness').value}%) contrast(${$('contrast').value}%) saturate(${$('saturation').value}%) ${$('filter').value==='none'?'':$('filter').value}`;
-   ctx.translate(w/2,h/2);ctx.rotate(rotation*Math.PI/180);
-   if(fit==='stretch')ctx.drawImage(photo,-w/2,-h/2,w,h);
-   else ctx.drawImage(photo,-pw/2,-ph/2,pw,ph);
-   ctx.restore();ctx.fillStyle='rgba(10,8,22,.22)';ctx.fillRect(0,0,w,h);
- }
- const title=$('titleText').value,sub=$('subText').value;
- const scaleFactor=h/1950,size=Number($('textSize').value)*1.5*scaleFactor;
- let y=$('position').value==='upper'?h*.31:$('position').value==='lower'?h*.69:mode==='lock'?h*.55:h*.49;
- ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor='rgba(0,0,0,.35)';ctx.shadowBlur=22*scaleFactor;ctx.fillStyle='#fff';
- ctx.font=`600 ${size}px system-ui`;wrap(title,w*.78,y,size*1.18);
- ctx.shadowBlur=10*scaleFactor;ctx.font=`400 ${36*scaleFactor}px system-ui`;wrap(sub,w*.75,y+size*1.55,50*scaleFactor);
- ctx.shadowBlur=0;
- if(mode==='lock'){ctx.fillStyle='rgba(255,255,255,.85)';ctx.font=`300 ${100*scaleFactor}px system-ui`;ctx.fillText('9:41',w/2,h*.13);ctx.font=`${32*scaleFactor}px system-ui`;ctx.fillText('MONDAY  •  YOUR DAY',w/2,h*.18)}
+function restore(s){if(!s)return;restoring=true;for(let [id,key] of [['colorA','a'],['colorB','b'],['titleText','title'],['subText','sub'],['overlay','overlay'],['brightness','brightness'],['contrast','contrast'],['saturation','saturation'],['filter','filter'],['textSize','textSize'],['position','position'],['fitMode','fit'],['clockColor','clockColor'],['clockSize','clockSize'],['clockStyle','clockStyle'],['clockPosition','clockPosition'],['clockOffset','clockOffset'],['clockFormat','clockFormat'],['dateText','dateText'],['showClock','showClock'],['showDate','showDate']])$(id).value=s[key];rotation=s.rotation;setDimensions(s.w,s.h);restoring=false;draw();}
+function photoLayer(){let layer=document.createElement('canvas');layer.width=canvas.width;layer.height=canvas.height;let c=layer.getContext('2d');if(!photo)return layer;let r=fitRect(),w=canvas.width,h=canvas.height;c.save();c.globalAlpha=+$('overlay').value/100;c.filter=`brightness(${$('brightness').value}%) contrast(${$('contrast').value}%) saturate(${$('saturation').value}%) ${$('filter').value==='none'?'':$('filter').value}`;c.translate(w/2,h/2);c.rotate(rotation*Math.PI/180);if($('fitMode').value==='stretch')c.drawImage(photo,-w/2,-h/2,w,h);else c.drawImage(photo,-r.w/2,-r.h/2,r.w,r.h);c.restore();c.fillStyle='rgba(10,8,22,.22)';c.fillRect(0,0,w,h);return layer;}
+function clockY(){let h=canvas.height,p=$('clockPosition').value,base=p==='top'?.14:p==='upper'?.27:p==='middle'?.48:.72;return h*(base+(+$('clockOffset').value-50)/500);}
+function clockFont(){let s=+$('clockSize').value*canvas.height/1950,style=$('clockStyle').value;let fam=style==='serif'?'Georgia,serif':style==='mono'?'monospace':'system-ui';let weight=style==='bold'?800:style==='thin'?200:500;return `${weight} ${s}px ${fam}`;}
+function drawClock(){if(mode!=='lock')return;let w=canvas.width,h=canvas.height,y=clockY(),sf=h/1950;ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=$('clockColor').value;ctx.shadowColor='rgba(0,0,0,.28)';ctx.shadowBlur=12*sf;if($('showClock').value==='yes'){let d=new Date(),hh=d.getHours(),mm=String(d.getMinutes()).padStart(2,'0'),time=$('clockFormat').value==='12'?`${hh%12||12}:${mm}`:`${String(hh).padStart(2,'0')}:${mm}`;ctx.font=clockFont();ctx.fillText(time,w/2,y);}if($('showDate').value==='yes') {ctx.font=`500 ${30*sf}px system-ui`;ctx.fillText($('dateText').value,w/2,y+(+$('clockSize').value*.85*sf));}ctx.restore();}
+function draw(){let w=canvas.width,h=canvas.height,g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,$('colorA').value);g.addColorStop(1,$('colorB').value);ctx.fillStyle=g;ctx.fillRect(0,0,w,h);let layer=photoLayer();ctx.drawImage(layer,0,0);drawClock();
+ // Overlay only the manually painted foreground parts of the original photo above the clock.
+ if(photo){let fg=document.createElement('canvas');fg.width=w;fg.height=h;let f=fg.getContext('2d');f.drawImage(layer,0,0);f.globalCompositeOperation='destination-in';f.drawImage(mask,0,0);ctx.drawImage(fg,0,0);}
+ if($('titleText').value||$('subText').value){let sf=h/1950,size=+$('textSize').value*1.5*sf,y=$('position').value==='upper'?h*.31:$('position').value==='lower'?h*.69:mode==='lock'?h*.62:h*.49;ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fff';ctx.shadowColor='rgba(0,0,0,.35)';ctx.shadowBlur=20*sf;ctx.font=`600 ${size}px system-ui`;wrap($('titleText').value,w*.78,y,size*1.18);ctx.font=`400 ${36*sf}px system-ui`;ctx.shadowBlur=9*sf;wrap($('subText').value,w*.75,y+size*1.55,50*sf);ctx.restore();}
 }
-function wrap(text,maxWidth,y,lineH){const words=text.split(/\s+/);let line='',lines=[];for(const word of words){const test=line?line+' '+word:word;if(ctx.measureText(test).width>maxWidth&&line){lines.push(line);line=word}else line=test}if(line)lines.push(line);lines.forEach((l,i)=>ctx.fillText(l,canvas.width/2,y+(i-(lines.length-1)/2)*lineH))}
-function setMode(m){mode=m;$('homeBtn').classList.toggle('active',m==='home');$('lockBtn').classList.toggle('active',m==='lock');draw()}
-['titleText','subText','colorA','colorB','overlay','brightness','contrast','saturation','filter','textSize','position','fitMode'].forEach(id=>$(id).addEventListener('input',()=>{snapshot();draw()}));
+function wrap(t,max,y,lineH){let words=t.split(/\s+/),line='',lines=[];for(let word of words){let test=line?line+' '+word:word;if(ctx.measureText(test).width>max&&line){lines.push(line);line=word}else line=test;}if(line)lines.push(line);lines.forEach((l,i)=>ctx.fillText(l,canvas.width/2,y+(i-(lines.length-1)/2)*lineH));}
+function setMode(m){mode=m;$('homeBtn').classList.toggle('active',m==='home');$('lockBtn').classList.toggle('active',m==='lock');draw();}
+function setBrush(m){brushMode=m;$('paintBtn').classList.toggle('active-tool',m==='paint');$('eraseBtn').classList.toggle('active-tool',m==='erase');$('brushStatus').textContent=m==='off'?'Brush is off. Painted areas will cover the clock with the photo.':m==='paint'?'Paint mode: draw over the subject that should sit in front of the clock.':'Erase mode: draw over painted mask areas to reveal the clock again.';}
+function point(e){let r=canvas.getBoundingClientRect();return {x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height};}
+function stroke(e){let p=point(e);maskCtx.lineCap='round';maskCtx.lineJoin='round';maskCtx.lineWidth=+$('brushSize').value*canvas.width/330;maskCtx.strokeStyle=brushMode==='paint'?'white':'black';maskCtx.globalCompositeOperation=brushMode==='paint'?'source-over':'destination-out';maskCtx.lineTo(p.x,p.y);maskCtx.stroke();draw();}
+canvas.addEventListener('pointerdown',e=>{if(brushMode==='off'||mode!=='lock'||!photo)return;drawing=true;let p=point(e);maskCtx.beginPath();maskCtx.moveTo(p.x,p.y);maskCtx.lineTo(p.x+.1,p.y+.1);stroke(e);canvas.setPointerCapture(e.pointerId);});
+canvas.addEventListener('pointermove',e=>{if(drawing)stroke(e)});canvas.addEventListener('pointerup',()=>{drawing=false;maskCtx.beginPath()});canvas.addEventListener('pointercancel',()=>{drawing=false;maskCtx.beginPath()});
+['titleText','subText','colorA','colorB','overlay','brightness','contrast','saturation','filter','textSize','position','fitMode','clockFormat','clockStyle','clockColor','clockSize','clockPosition','clockOffset','dateText','showClock','showDate'].forEach(id=>$(id).addEventListener('input',()=>{snapshot();draw()}));
 $('homeBtn').onclick=()=>setMode('home');$('lockBtn').onclick=()=>setMode('lock');
-$('rotateBtn').onclick=()=>{snapshot();rotation=(rotation+90)%360;draw()};
-$('undoBtn').onclick=()=>{if(history.length){future.push(state());restore(history.pop())}};
-$('redoBtn').onclick=()=>{if(future.length){history.push(state());restore(future.pop())}};
-document.querySelectorAll('.preset').forEach(btn=>btn.onclick=()=>{snapshot();$('colorA').value=btn.dataset.a;$('colorB').value=btn.dataset.b;draw()});
-$('devicePreset').onchange=()=>{const v=$('devicePreset').value;if(v==='custom')return;const [w,h]=v.split('x').map(Number);snapshot();setDimensions(w,h)};
-['customWidth','customHeight'].forEach(id=>$(id).addEventListener('change',()=>{snapshot();$('devicePreset').value='custom';setDimensions($('customWidth').value,$('customHeight').value)}));
-$('photo').onchange=e=>{const f=e.target.files[0];if(!f)return;const img=new Image();img.onload=()=>{snapshot();photo=img;draw()};img.src=URL.createObjectURL(f)};
-$('resetBtn').onclick=()=>{snapshot();photo=null;rotation=0;$('photo').value='';$('titleText').value='Make today beautiful';$('subText').value='A little progress every day.';$('colorA').value='#25164a';$('colorB').value='#e08ca8';$('overlay').value=65;$('brightness').value=100;$('contrast').value=100;$('saturation').value=100;$('filter').value='none';$('textSize').value=66;$('position').value='middle';$('fitMode').value='cover';$('devicePreset').value='1080x2340';setDimensions(1080,2340);setMode('home')};
-$('downloadBtn').onclick=()=>{const a=document.createElement('a');a.download='wallpaper-maya-'+mode+'-'+canvas.width+'x'+canvas.height+'.png';a.href=canvas.toDataURL('image/png');a.click()};
+document.querySelectorAll('.preset').forEach(b=>b.onclick=()=>{snapshot();$('colorA').value=b.dataset.a;$('colorB').value=b.dataset.b;draw()});
+$('devicePreset').onchange=()=>{let v=$('devicePreset').value;if(v!=='custom'){let [w,h]=v.split('x').map(Number);setDimensions(w,h)}};
+['customWidth','customHeight'].forEach(id=>$(id).onchange=()=>{$('devicePreset').value='custom';setDimensions($('customWidth').value,$('customHeight').value)});
+$('photo').onchange=e=>{let f=e.target.files[0];if(!f)return;let img=new Image();img.onload=()=>{photo=img;maskCtx.clearRect(0,0,mask.width,mask.height);draw()};img.src=URL.createObjectURL(f)};
+$('rotateBtn').onclick=()=>{rotation=(rotation+90)%360;draw()};
+$('paintBtn').onclick=()=>setBrush(brushMode==='paint'?'off':'paint');$('eraseBtn').onclick=()=>setBrush(brushMode==='erase'?'off':'erase');
+$('clearMaskBtn').onclick=()=>{maskCtx.clearRect(0,0,mask.width,mask.height);draw()};
+$('undoBtn').onclick=()=>{if(history.length){future.push(state());restore(history.pop())}};$('redoBtn').onclick=()=>{if(future.length){history.push(state());restore(future.pop())}};
+$('resetBtn').onclick=()=>{photo=null;rotation=0;maskCtx.clearRect(0,0,mask.width,mask.height);$('photo').value='';$('titleText').value='Make today beautiful';$('subText').value='A little progress every day.';$('colorA').value='#25164a';$('colorB').value='#e08ca8';$('overlay').value=65;$('brightness').value=100;$('contrast').value=100;$('saturation').value=100;$('filter').value='none';$('textSize').value=66;$('position').value='middle';$('fitMode').value='cover';$('devicePreset').value='1080x2340';$('clockFormat').value='12';$('clockStyle').value='modern';$('clockColor').value='#ffffff';$('clockSize').value=115;$('clockPosition').value='top';$('clockOffset').value=0;$('dateText').value='MONDAY  •  YOUR DAY';$('showClock').value='yes';$('showDate').value='yes';setBrush('off');setDimensions(1080,2340);setMode('home')};
+$('downloadBtn').onclick=()=>{let a=document.createElement('a');a.download=`wallpaper-maya-${mode}-${canvas.width}x${canvas.height}.png`;a.href=canvas.toDataURL('image/png');a.click()};
 setDimensions(1080,2340);draw();
-</script>
-</body>
-</html>
+</script></body></html>
