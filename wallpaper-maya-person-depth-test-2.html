@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wallpaper Maya — Person Depth Test 2</title>
+<style>
+:root{color-scheme:dark;--bg:#10121a;--panel:#1b1e2b;--muted:#aeb4c7}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f5f5fb;font:15px system-ui,sans-serif}
+main{max-width:760px;margin:auto;padding:18px}h1{font-size:24px;margin:4px 0 6px}
+p{color:var(--muted);line-height:1.45}.panel{background:var(--panel);padding:15px;border-radius:16px;margin:14px 0}
+button{background:#7660d8;color:white;border:0;border-radius:10px;padding:12px 15px;font-weight:650}
+button:disabled{opacity:.45}input[type=file]{max-width:100%}input[type=range]{width:100%}
+canvas{display:block;width:100%;height:auto;background:#090a10;border-radius:12px}
+#status{white-space:pre-wrap;color:#d9d2ff;font-size:14px;margin-top:10px}
+.small{font-size:12px}.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+label{display:block;margin-top:10px}
+</style>
+</head>
+<body><main>
+<h1>Wallpaper Maya — Person Depth Test 2</h1>
+<p>Separate experiment. This version changes how the AI mask is applied. It does not replace your live Wallpaper Maya app.</p>
+<div class="panel">
+ <b>1. Choose a photo</b>
+ <p class="small">Best results with a clearly visible person.</p>
+ <input id="photo" type="file" accept="image/*">
+ <div class="row" style="margin-top:12px"><button id="detect" disabled>Detect person</button><button id="clear" disabled>Clear photo</button></div>
+ <div id="status">Choose a photo to begin.</div>
+</div>
+<div class="panel">
+ <b>2. Adjust the clock</b>
+ <label>Clock size: <span id="sizeval">100</span> px</label>
+ <input id="size" type="range" min="34" max="120" value="100">
+ <label>Clock vertical position: <span id="posval">50</span>%</label>
+ <input id="pos" type="range" min="8" max="85" value="50">
+ <label><input id="showMask" type="checkbox"> Show AI mask preview (diagnostic)</label>
+</div>
+<div class="panel">
+ <b>3. Preview</b>
+ <canvas id="view" width="640" height="1138"></canvas>
+ <div class="row" style="margin-top:12px"><button id="save" disabled>Download test wallpaper</button></div>
+ <p class="small">The original photo is drawn first, then the clock, then the AI-cut-out person. The diagnostic option displays the mask itself.</p>
+</div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
+<script>
+const $=id=>document.getElementById(id),canvas=$('view'),ctx=canvas.getContext('2d');
+let photo=null,segmenter=null,personMask=null,busy=false,photoUrl=null;
+function status(s){$('status').textContent=s}
+function dims(img){const scale=Math.min(640/img.naturalWidth,1138/img.naturalHeight,1);return [Math.max(1,Math.round(img.naturalWidth*scale)),Math.max(1,Math.round(img.naturalHeight*scale))]}
+function draw(){
+ if(!photo)return;
+ const [w,h]=dims(photo);if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}
+ ctx.clearRect(0,0,w,h);ctx.drawImage(photo,0,0,w,h);
+ const clockY=h*Number($('pos').value)/100,fs=Math.min(Number($('size').value),w*.2);
+ ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='white';
+ ctx.shadowColor='rgba(0,0,0,.5)';ctx.shadowBlur=8;
+ ctx.font=`300 ${fs}px system-ui`;ctx.fillText('9:41',w/2,clockY);
+ ctx.font=`400 ${Math.max(12,fs*.22)}px system-ui`;
+ ctx.fillText(new Date().toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}),w/2,clockY+fs*.7);
+ ctx.restore();
+ if(personMask){
+   if($('showMask').checked){
+     ctx.save();ctx.globalAlpha=.45;ctx.drawImage(personMask,0,0,w,h);ctx.restore();
+   }else{
+     // Canonical MediaPipe compositing: use its segmentationMask directly as destination-in.
+     const cut=document.createElement('canvas');cut.width=w;cut.height=h;
+     const cc=cut.getContext('2d');
+     cc.drawImage(photo,0,0,w,h);
+     cc.globalCompositeOperation='destination-in';
+     cc.drawImage(personMask,0,0,w,h);
+     ctx.drawImage(cut,0,0);
+   }
+ }
+ $('save').disabled=false;
+}
+async function getSegmenter(){
+ if(segmenter)return segmenter;
+ if(typeof SelfieSegmentation==='undefined')throw new Error('The MediaPipe library did not load. Check your internet connection and reload.');
+ segmenter=new SelfieSegmentation({locateFile:file=>`https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`});
+ segmenter.setOptions({modelSelection:1});
+ segmenter.onResults(results=>{
+   if(!photo)return;
+   personMask=results.segmentationMask;
+   draw();
+   status('Detection finished. The AI mask is ready. If the person still does not cover the clock, tick “Show AI mask preview” and send a screenshot.');
+   busy=false;$('detect').disabled=false;
+ });
+ await segmenter.initialize();return segmenter;
+}
+$('photo').addEventListener('change',e=>{
+ const file=e.target.files&&e.target.files[0];if(!file)return;
+ if(photoUrl)URL.revokeObjectURL(photoUrl);photoUrl=URL.createObjectURL(file);
+ const img=new Image();img.onload=()=>{photo=img;personMask=null;$('detect').disabled=false;$('clear').disabled=false;draw();status('Photo loaded. Tap “Detect person”.')};
+ img.onerror=()=>status('Could not open this photo. Choose another image.');img.src=photoUrl;
+});
+$('detect').addEventListener('click',async()=>{
+ if(!photo||busy)return;busy=true;$('detect').disabled=true;
+ status('Loading the person-segmentation model…');
+ try{const model=await getSegmenter();status('Analysing photo…');await model.send({image:photo})}
+ catch(err){busy=false;$('detect').disabled=false;console.error(err);status('Detection failed: '+(err?.message||err))}
+});
+$('size').addEventListener('input',()=>{$('sizeval').textContent=$('size').value;draw()});
+$('pos').addEventListener('input',()=>{$('posval').textContent=$('pos').value;draw()});
+$('showMask').addEventListener('change',draw);
+$('clear').addEventListener('click',()=>{photo=null;personMask=null;ctx.clearRect(0,0,canvas.width,canvas.height);$('photo').value='';$('detect').disabled=true;$('clear').disabled=true;$('save').disabled=true;status('Photo cleared.')});
+$('save').addEventListener('click',()=>{const a=document.createElement('a');a.download='wallpaper-maya-person-depth-test-2.png';a.href=canvas.toDataURL('image/png');a.click()});
+</script></body></html>
