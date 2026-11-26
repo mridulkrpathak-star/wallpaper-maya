@@ -5,16 +5,16 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Wallpaper Maya — AI Depth Test</title>
 <style>
-:root{color-scheme:dark;--bg:#10121a;--panel:#1b1e2b;--muted:#aeb4c7;--accent:#a78bfa}
+:root{color-scheme:dark;--bg:#10121a;--panel:#1b1e2b;--muted:#aeb4c7}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f5f5fb;font:15px system-ui,sans-serif}
 main{max-width:760px;margin:auto;padding:18px}h1{margin:4px 0 5px;font-size:25px}p{color:var(--muted);line-height:1.45}
 .panel{background:var(--panel);padding:15px;border-radius:16px;margin:14px 0}
-button,.file{background:#7660d8;color:white;border:0;border-radius:10px;padding:11px 14px;font-weight:650;display:inline-block}
+button{background:#7660d8;color:white;border:0;border-radius:10px;padding:11px 14px;font-weight:650}
 button:disabled{opacity:.45}.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
 input[type=file]{max-width:100%}input[type=range]{width:100%}
 canvas{display:block;width:100%;height:auto;background:#090a10;border-radius:12px}
 #status{white-space:pre-wrap;color:#d9d2ff;font-size:14px;margin-top:10px}
-.small{font-size:12px}.hidden{display:none}.checks{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.small{font-size:12px}.checks{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 label{display:flex;gap:8px;align-items:center;color:#e8e8f2}
 </style>
 </head>
@@ -44,7 +44,7 @@ label{display:flex;gap:8px;align-items:center;color:#e8e8f2}
 <script type="module">
 const $=id=>document.getElementById(id);
 const canvas=$('view'),ctx=canvas.getContext('2d');
-let photo=null, results=[], selected=new Set(), masks=[], busy=false;
+let photo=null, photoURL=null, results=[], selected=new Set(), masks=[], busy=false;
 let modulePromise;
 async function loadModel(){
   if(!modulePromise) modulePromise=import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2');
@@ -65,20 +65,14 @@ function draw(){
  ctx.font=`300 ${font}px system-ui`;ctx.fillText('9:41',x,y);
  ctx.font=`400 ${Math.max(12,font*.22)}px system-ui`;ctx.fillText(new Date().toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}),x,y+font*.7);
  ctx.restore();
- // Repaint selected object masks from original photo over the clock.
  for(const item of masks){
    if(!selected.has(item.label))continue;
-   const m=item.mask;
-   if(!m)continue;
-   const mw=m.width||m.dims?.[1], mh=m.height||m.dims?.[0];
-   const data=m.data;
+   const m=item.mask;if(!m)continue;
+   const mw=m.width||m.dims?.[1],mh=m.height||m.dims?.[0],data=m.data;
    if(!mw||!mh||!data)continue;
    const off=document.createElement('canvas');off.width=mw;off.height=mh;
    const oc=off.getContext('2d'),im=oc.createImageData(mw,mh);
-   for(let i=0;i<mw*mh;i++){
-     const v=Number(data[i]);const a=(v>0?255:0);
-     im.data[i*4]=255;im.data[i*4+1]=255;im.data[i*4+2]=255;im.data[i*4+3]=a;
-   }
+   for(let i=0;i<mw*mh;i++){const a=Number(data[i])>0?255:0;im.data[i*4]=255;im.data[i*4+1]=255;im.data[i*4+2]=255;im.data[i*4+3]=a}
    oc.putImageData(im,0,0);
    const cut=document.createElement('canvas');cut.width=canvas.width;cut.height=canvas.height;
    const cc=cut.getContext('2d');cc.drawImage(photo,0,0,canvas.width,canvas.height);
@@ -87,32 +81,31 @@ function draw(){
  }
  $('save').disabled=false;
 }
-function maskFrom(item){
- const m=item.mask;
- if(!m)return null;
- return m;
-}
 $('photo').addEventListener('change',e=>{
  const f=e.target.files?.[0];if(!f)return;
- const url=URL.createObjectURL(f),img=new Image();
- img.onload=()=>{photo=img;results=[];masks=[];selected.clear();$('choices').innerHTML='';$('detect').disabled=false;$('reset').disabled=false;draw();status('Photo loaded. Tap “Detect foreground objects”.');URL.revokeObjectURL(url)};
+ if(photoURL)URL.revokeObjectURL(photoURL);
+ photoURL=URL.createObjectURL(f);
+ const img=new Image();
+ img.onload=()=>{photo=img;results=[];masks=[];selected.clear();$('choices').innerHTML='';$('detect').disabled=false;$('reset').disabled=false;draw();status('Photo loaded. Tap “Detect foreground objects”.')};
  img.onerror=()=>status('Could not open that image. Try another photo.');
- img.src=url;
+ img.src=photoURL;
 });
 $('detect').addEventListener('click',async()=>{
- if(!photo||busy)return;busy=true;$('detect').disabled=true;$('choices').innerHTML='';
+ if(!photo||!photoURL||busy)return;busy=true;$('detect').disabled=true;$('choices').innerHTML='';
  status('Loading the AI model. The first load may take a little while and needs internet access…');
  try{
   const segment=await loadModel();status('Analysing the photo…');
-  const out=await segment(photo);
+  // Transformers.js expects an image URL/Blob/RawImage, not an HTMLImageElement.
+  const out=await segment(photoURL);
   results=Array.isArray(out)?out:[out];
-  masks=results.map(r=>({label:r.label||'object',mask:maskFrom(r),score:r.score??0})).filter(x=>x.mask);
+  masks=results.map(r=>({label:r.label||'object',mask:r.mask,score:r.score??0})).filter(x=>x.mask);
   const labels=[...new Set(masks.map(x=>x.label))];
   if(!labels.length)throw new Error('The model did not return usable masks for this image.');
   $('choices').innerHTML='';
   labels.forEach((label,i)=>{
-    const id='obj'+i,wrap=document.createElement('label'),input=document.createElement('input');
-    input.type='checkbox';input.id=id;input.checked=/person|tree|plant|building|car|animal|furniture|chair|sofa|mountain|rock/i.test(label);
+    const wrap=document.createElement('label'),input=document.createElement('input');
+    input.type='checkbox';input.id='obj'+i;
+    input.checked=/person|tree|plant|building|car|animal|furniture|chair|sofa|mountain|rock/i.test(label);
     if(input.checked)selected.add(label);
     input.addEventListener('change',()=>{if(input.checked)selected.add(label);else selected.delete(label);draw()});
     wrap.append(input,document.createTextNode(label));$('choices').append(wrap);
