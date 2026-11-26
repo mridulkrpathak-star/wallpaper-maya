@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#10121a">
+<title>Wallpaper Maya — Image Segmenter Diagnostic 7</title>
+<style>
+:root{color-scheme:dark;--bg:#10121a;--panel:#1b1e2b;--muted:#aeb4c7}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f5f5fb;font:16px system-ui,sans-serif}
+main{max-width:760px;margin:auto;padding:18px}h1{font-size:22px;margin:4px 0 8px}
+p{color:var(--muted);line-height:1.45}.panel{background:var(--panel);padding:16px;border-radius:16px;margin:14px 0}
+button{background:#7660d8;color:white;border:0;border-radius:11px;padding:13px 16px;font-weight:700;font-size:15px}
+button:disabled{opacity:.45}input[type=file]{max-width:100%;font-size:14px}
+canvas{display:block;width:100%;height:auto;background:#090a10;border-radius:12px}
+#status{white-space:pre-wrap;color:#d9d2ff;font-size:14px;margin-top:10px}
+.small{font-size:13px}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+label{display:block;margin-top:12px}.metric{font-variant-numeric:tabular-nums;color:#d9d2ff;line-height:1.65;white-space:pre-wrap}
+select{background:#292d3c;color:white;border:1px solid #555;border-radius:8px;padding:10px;max-width:100%}
+</style></head>
+<body><main>
+<h1>Wallpaper Maya — Image Segmenter Diagnostic 7</h1>
+<p>Separate test using MediaPipe Tasks Image Segmenter and floating-point confidence masks. It does not modify the main app.</p>
+<div class="panel">
+ <b>1. Choose a photograph</b>
+ <p class="small">Use the same photo from Diagnostics 5 and 6. A clear photo with one visible person is best for this test.</p>
+ <input id="photo" type="file" accept="image/*">
+ <div class="row" style="margin-top:14px"><button id="detect" disabled>Segment photo</button><button id="clear" disabled>Clear photo</button></div>
+ <div id="status">Choose a photo to begin.</div>
+</div>
+<div class="panel">
+ <b>2. Confidence-mask results</b>
+ <div class="metric" id="stats">No segmentation yet.</div>
+ <label>Mask channel: <select id="channel" disabled></select></label>
+ <label><input id="overlay" type="checkbox" checked> Show selected mask as green overlay</label>
+ <label><input id="maskOnly" type="checkbox"> Show selected confidence mask only</label>
+</div>
+<div class="panel"><b>3. Preview</b><canvas id="view" width="640" height="900"></canvas></div>
+</main>
+<script type="module">
+import { FilesetResolver, ImageSegmenter } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22";
+const $=id=>document.getElementById(id),canvas=$('view'),ctx=canvas.getContext('2d');
+let photo=null,segmenter=null,photoUrl=null,masks=[],maskW=0,maskH=0,busy=false;
+function status(s){$('status').textContent=s}
+function dims(img){const scale=Math.min(640/img.naturalWidth,1100/img.naturalHeight,1);return [Math.max(1,Math.round(img.naturalWidth*scale)),Math.max(1,Math.round(img.naturalHeight*scale))]}
+function current(){return masks[Number($('channel').value)||0]}
+function draw(){
+ if(!photo)return;const [w,h]=dims(photo);canvas.width=w;canvas.height=h;ctx.clearRect(0,0,w,h);
+ if($('maskOnly').checked&&masks.length){const m=current();const tmp=document.createElement('canvas');tmp.width=maskW;tmp.height=maskH;const t=tmp.getContext('2d'),im=t.createImageData(maskW,maskH);for(let p=0,i=0;p<m.data.length;p++,i+=4){const v=Math.max(0,Math.min(255,Math.round(m.data[p]*255)));im.data[i]=im.data[i+1]=im.data[i+2]=v;im.data[i+3]=255}t.putImageData(im,0,0);ctx.drawImage(tmp,0,0,w,h)}
+ else{ctx.drawImage(photo,0,0,w,h);if(masks.length&&$('overlay').checked){const m=current(),tmp=document.createElement('canvas');tmp.width=maskW;tmp.height=maskH;const t=tmp.getContext('2d'),im=t.createImageData(maskW,maskH);for(let p=0,i=0;p<m.data.length;p++,i+=4){im.data[i]=0;im.data[i+1]=255;im.data[i+2]=70;im.data[i+3]=Math.round(Math.max(0,Math.min(1,m.data[p]))*175)}t.putImageData(im,0,0);ctx.drawImage(tmp,0,0,w,h)}}
+}
+async function init(){
+ if(segmenter)return segmenter;
+ status('Loading MediaPipe Tasks and segmentation model…');
+ const vision=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm');
+ segmenter=await ImageSegmenter.createFromOptions(vision,{
+  baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float16/latest/selfie_multiclass_256x256.tflite',delegate:'CPU'},
+  runningMode:'IMAGE',outputCategoryMask:true,outputConfidenceMasks:true,displayNamesLocale:'en'
+ });
+ return segmenter;
+}
+$('photo').addEventListener('change',e=>{
+ const f=e.target.files&&e.target.files[0];if(!f)return;
+ if(photoUrl)URL.revokeObjectURL(photoUrl);photoUrl=URL.createObjectURL(f);
+ const im=new Image();im.onload=()=>{photo=im;masks=[];$('stats').textContent='No segmentation yet.';$('channel').innerHTML='';$('channel').disabled=true;$('detect').disabled=false;$('clear').disabled=false;draw();status('Photo loaded. Tap Segment photo.')};im.onerror=()=>status('Could not open this photo.');im.src=photoUrl;
+});
+$('detect').addEventListener('click',async()=>{
+ if(!photo||busy)return;busy=true;$('detect').disabled=true;
+ try{
+  const task=await init();status('Running segmentation…');
+  const result=task.segment(photo);
+  const labels=task.getLabels();masks=(result.confidenceMasks||[]).map((mask,i)=>({label:labels[i]||`Channel ${i}`,data:mask.getAsFloat32Array(),width:mask.width,height:mask.height}));
+  if(!masks.length)throw new Error('The model returned no confidence masks. Category mask: '+(result.categoryMask?'present':'missing'));
+  maskW=masks[0].width;maskH=masks[0].height;
+  const sel=$('channel');sel.innerHTML='';masks.forEach((m,i)=>{const o=document.createElement('option');o.value=i;o.textContent=`${i}: ${m.label}`;sel.appendChild(o)});sel.disabled=false;
+  const lines=masks.map((m,i)=>{let min=1,max=0,sum=0,over50=0;for(const v of m.data){min=Math.min(min,v);max=Math.max(max,v);sum+=v;if(v>=.5)over50++}return `${i}. ${m.label}: min ${min.toFixed(4)}, max ${max.toFixed(4)}, avg ${(sum/m.data.length).toFixed(4)}, pixels ≥0.5 ${(100*over50/m.data.length).toFixed(2)}%`});
+  $('stats').textContent=`Input: ${photo.naturalWidth} × ${photo.naturalHeight}px\nMask: ${maskW} × ${maskH}px\nConfidence channels: ${masks.length}\nLabels: ${labels.join(', ')||'(no model labels)'}\n\n`+lines.join('\n');
+  status('Segmentation completed. Select each channel and check whether its overlay follows the person.');draw();
+ }catch(err){console.error(err);status('Segmentation failed: '+(err?.message||err))}
+ finally{busy=false;$('detect').disabled=false}
+});
+$('channel').addEventListener('change',draw);$('overlay').addEventListener('change',draw);$('maskOnly').addEventListener('change',draw);
+$('clear').addEventListener('click',()=>{photo=null;masks=[];maskW=maskH=0;ctx.clearRect(0,0,canvas.width,canvas.height);$('photo').value='';$('detect').disabled=true;$('clear').disabled=true;$('channel').disabled=true;$('channel').innerHTML='';$('stats').textContent='No segmentation yet.';status('Photo cleared.')});
+</script></body></html>
