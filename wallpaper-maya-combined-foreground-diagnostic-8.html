@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#10121a">
+<title>Wallpaper Maya — Combined Foreground Diagnostic 8</title>
+<style>
+:root{color-scheme:dark;--bg:#10121a;--panel:#1b1e2b;--muted:#aeb4c7}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f5f5fb;font:16px system-ui,sans-serif}
+main{max-width:760px;margin:auto;padding:18px}h1{font-size:22px;margin:4px 0 8px}
+p{color:var(--muted);line-height:1.45}.panel{background:var(--panel);padding:16px;border-radius:16px;margin:14px 0}
+button{background:#7660d8;color:white;border:0;border-radius:11px;padding:13px 16px;font-weight:700;font-size:15px}
+button:disabled{opacity:.45}input[type=file]{max-width:100%;font-size:14px}
+canvas{display:block;width:100%;height:auto;background:#090a10;border-radius:12px}
+#status{white-space:pre-wrap;color:#d9d2ff;font-size:14px;margin-top:10px}
+.small{font-size:13px}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+label{display:block;margin-top:12px}.metric{font-variant-numeric:tabular-nums;color:#d9d2ff;line-height:1.65;white-space:pre-wrap}
+select{background:#292d3c;color:white;border:1px solid #555;border-radius:8px;padding:10px;max-width:100%}
+input[type=range]{width:100%}
+</style></head>
+<body><main>
+<h1>Wallpaper Maya — Combined Foreground Diagnostic 8</h1>
+<p>This is a separate test. It combines the five foreground confidence channels (hair, body-skin, face-skin, clothes and others), excludes background, and checks whether a clock can sit behind the detected subject. Your main index.html is not changed.</p>
+<div class="panel">
+ <b>1. Choose the same photograph</b>
+ <p class="small">Use the same photo you tested in Diagnostic 7.</p>
+ <input id="photo" type="file" accept="image/*">
+ <div class="row" style="margin-top:14px"><button id="detect" disabled>Build foreground mask</button><button id="clear" disabled>Clear photo</button></div>
+ <div id="status">Choose a photo to begin.</div>
+</div>
+<div class="panel">
+ <b>2. Combined foreground mask</b>
+ <div class="metric" id="stats">No segmentation yet.</div>
+ <label><input id="overlay" type="checkbox" checked> Show green foreground overlay</label>
+ <label><input id="maskOnly" type="checkbox"> Show combined mask only</label>
+ <label>Mask threshold: <span id="thresholdValue">0.35</span>
+ <input id="threshold" type="range" min="5" max="90" value="35"></label>
+ <p class="small">Raise the threshold to remove uncertain/background pixels; lower it to recover softer edges. This adjusts only the preview mask.</p>
+</div>
+<div class="panel">
+ <b>3. Clock-behind-subject test</b>
+ <label>Clock position: <select id="clockPos"><option value="top">Upper area</option><option value="middle" selected>Middle</option><option value="lower">Lower area</option></select></label>
+ <label>Clock size: <span id="clockSizeValue">58</span> px
+ <input id="clockSize" type="range" min="28" max="100" value="58"></label>
+ <label><input id="showClock" type="checkbox" checked> Show clock behind detected foreground</label>
+ <canvas id="view" width="640" height="900"></canvas>
+ <p class="small">The preview draws the full photo, then the clock, then the detected foreground cutout. Inspect whether the person appears in front of the clock and whether the mask leaks into the background.</p>
+</div>
+</main>
+<script type="module">
+import { FilesetResolver, ImageSegmenter } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22";
+const $=id=>document.getElementById(id),canvas=$('view'),ctx=canvas.getContext('2d');
+let photo=null,segmenter=null,photoUrl=null,masks=[],maskW=0,maskH=0,busy=false,combined=null;
+function status(s){$('status').textContent=s}
+function dims(img){const scale=Math.min(640/img.naturalWidth,1100/img.naturalHeight,1);return [Math.max(1,Math.round(img.naturalWidth*scale)),Math.max(1,Math.round(img.naturalHeight*scale))]}
+function makeCombined(){
+ if(!masks.length)return;
+ const n=masks[0].data.length,vals=new Float32Array(n);
+ // Soft union of channels 1–5; channel 0 is the background class and is excluded.
+ for(let p=0;p<n;p++){let remain=1;for(let c=1;c<masks.length;c++){const v=Math.max(0,Math.min(1,masks[c].data[p]));remain*=1-v}vals[p]=1-remain}
+ combined=vals;
+ const threshold=Number($('threshold').value)/100;let above=0,sum=0,min=1,max=0;
+ for(const v of vals){min=Math.min(min,v);max=Math.max(max,v);sum+=v;if(v>=threshold)above++}
+ $('stats').textContent=`Input: ${photo.naturalWidth} × ${photo.naturalHeight}px
+Mask: ${maskW} × ${maskH}px
+Foreground channels combined: ${masks.slice(1).map(m=>m.label).join(', ')}
+Combination: soft union (1 − product of (1 − channel confidence))
+Mask threshold: ${threshold.toFixed(2)}
+Combined confidence: min ${min.toFixed(4)}, max ${max.toFixed(4)}, average ${(sum/n).toFixed(4)}
+Pixels at/above threshold: ${(100*above/n).toFixed(2)}%`;
+ draw();
+}
+function buildCutout(){
+ const tmp=document.createElement('canvas');tmp.width=maskW;tmp.height=maskH;
+ const t=tmp.getContext('2d'),im=t.createImageData(maskW,maskH),threshold=Number($('threshold').value)/100;
+ for(let p=0,i=0;p<combined.length;p++,i+=4){
+  const v=combined[p],a=v<threshold?0:Math.round(255*Math.min(1,(v-threshold)/Math.max(.001,1-threshold)));
+  im.data[i]=im.data[i+1]=im.data[i+2]=255;im.data[i+3]=a;
+ }
+ t.putImageData(im,0,0);return tmp;
+}
+function draw(){
+ if(!photo)return;const [w,h]=dims(photo);canvas.width=w;canvas.height=h;ctx.clearRect(0,0,w,h);
+ if(!combined){ctx.drawImage(photo,0,0,w,h);return}
+ const mask=buildCutout();
+ if($('maskOnly').checked){
+  ctx.fillStyle='#111';ctx.fillRect(0,0,w,h);ctx.drawImage(mask,0,0,w,h);return;
+ }
+ ctx.drawImage(photo,0,0,w,h);
+ if($('showClock').checked){
+  const size=Number($('clockSize').value),y=$('clockPos').value==='top'?h*.22:$('clockPos').value==='lower'?h*.68:h*.46;
+  ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor='rgba(0,0,0,.55)';ctx.shadowBlur=8;ctx.fillStyle='rgba(255,255,255,.96)';ctx.font=`300 ${size}px system-ui,sans-serif`;ctx.fillText('10:08',w/2,y);ctx.font=`400 ${Math.max(14,Math.round(size*.24))}px system-ui,sans-serif`;ctx.fillText('Thursday, November 26',w/2,y+size*.72);ctx.restore();
+ }
+ // Composite the detected foreground over the clock.
+ const fg=document.createElement('canvas');fg.width=maskW;fg.height=maskH;
+ const f=fg.getContext('2d');f.drawImage(photo,0,0,maskW,maskH);f.globalCompositeOperation='destination-in';f.drawImage(mask,0,0);
+ ctx.drawImage(fg,0,0,w,h);
+ if($('overlay').checked){
+  const green=document.createElement('canvas');green.width=maskW;green.height=maskH;const g=green.getContext('2d');
+  g.fillStyle='#00ff55';g.fillRect(0,0,maskW,maskH);g.globalCompositeOperation='destination-in';g.drawImage(mask,0,0);
+  ctx.save();ctx.globalAlpha=.42;ctx.drawImage(green,0,0,w,h);ctx.restore();
+ }
+}
+async function init(){
+ if(segmenter)return segmenter;
+ status('Loading MediaPipe Tasks and segmentation model…');
+ const vision=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm');
+ segmenter=await ImageSegmenter.createFromOptions(vision,{
+  baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float16/latest/selfie_multiclass_256x256.tflite',delegate:'CPU'},
+  runningMode:'IMAGE',outputCategoryMask:true,outputConfidenceMasks:true,displayNamesLocale:'en'
+ });
+ return segmenter;
+}
+$('photo').addEventListener('change',e=>{
+ const f=e.target.files&&e.target.files[0];if(!f)return;
+ if(photoUrl)URL.revokeObjectURL(photoUrl);photoUrl=URL.createObjectURL(f);
+ const im=new Image();im.onload=()=>{photo=im;masks=[];combined=null;$('stats').textContent='No segmentation yet.';$('detect').disabled=false;$('clear').disabled=false;draw();status('Photo loaded. Tap Build foreground mask.')};im.onerror=()=>status('Could not open this photo.');im.src=photoUrl;
+});
+$('detect').addEventListener('click',async()=>{
+ if(!photo||busy)return;busy=true;$('detect').disabled=true;
+ try{
+  const task=await init();status('Running segmentation and combining foreground channels…');
+  const result=task.segment(photo),labels=task.getLabels();
+  masks=(result.confidenceMasks||[]).map((mask,i)=>({label:labels[i]||`Channel ${i}`,data:mask.getAsFloat32Array(),width:mask.width,height:mask.height}));
+  if(masks.length<2)throw new Error('Expected multiple confidence channels, but the model returned '+masks.length+'.');
+  maskW=masks[0].width;maskH=masks[0].height;makeCombined();
+  status('Combined foreground mask ready. Inspect the overlay and clock layering.'); 
+ }catch(err){console.error(err);status('Segmentation failed: '+(err?.message||err))}
+ finally{busy=false;$('detect').disabled=false}
+});
+$('threshold').addEventListener('input',()=>{$('thresholdValue').textContent=(Number($('threshold').value)/100).toFixed(2);if(masks.length)makeCombined()});
+$('clockSize').addEventListener('input',()=>{$('clockSizeValue').textContent=$('clockSize').value;draw()});
+['overlay','maskOnly','clockPos','showClock'].forEach(id=>$(id).addEventListener('change',draw));
+$('clear').addEventListener('click',()=>{photo=null;masks=[];combined=null;maskW=maskH=0;ctx.clearRect(0,0,canvas.width,canvas.height);$('photo').value='';$('detect').disabled=true;$('clear').disabled=true;$('stats').textContent='No segmentation yet.';status('Photo cleared.')});
+</script></body></html>
