@@ -12,10 +12,10 @@ header{padding:22px 18px 12px;max-width:1100px;margin:auto}header h1{margin:0;fo
 main{max-width:1100px;margin:auto;padding:14px 18px 36px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:22px}
 .panel{background:#1b1b2bdd;border:1px solid #ffffff18;border-radius:20px;padding:18px;box-shadow:0 18px 55px #0003}
 h2{font-size:17px;margin:0 0 15px}.preview-wrap{display:flex;justify-content:center;padding:12px 0}
-canvas{width:min(100%,330px);height:auto;aspect-ratio:9/19.5;border-radius:27px;border:5px solid #ffffff20;background:#252238;box-shadow:0 20px 50px #0008}
+canvas{display:block;width:min(100%,330px);height:auto;aspect-ratio:9/19.5;border-radius:27px;border:5px solid #ffffff20;background:#252238;box-shadow:0 20px 50px #0008}
 .modes{display:flex;gap:8px;margin-bottom:16px}.modes button,.preset{border:1px solid #ffffff24;background:#29283b;color:#fff;border-radius:12px;padding:10px 13px;cursor:pointer}.modes button.active{background:var(--accent);color:#171221;border-color:transparent;font-weight:700}
-label{display:block;color:#e8e5f1;font-size:13px;margin:14px 0 7px}input[type=text],textarea,select{width:100%;background:#11111d;color:#fff;border:1px solid #ffffff25;border-radius:11px;padding:11px;font:inherit}textarea{resize:vertical;min-height:70px}input[type=color]{width:48px;height:38px;border:0;background:none;vertical-align:middle}input[type=range]{width:100%;accent-color:var(--accent)}
-.presets{display:flex;flex-wrap:wrap;gap:8px}.preset{padding:8px 11px;font-size:13px}.row{display:flex;align-items:center;gap:12px}.row>*{flex:1}
+label{display:block;color:#e8e5f1;font-size:13px;margin:14px 0 7px}input[type=text],input[type=number],textarea,select{width:100%;background:#11111d;color:#fff;border:1px solid #ffffff25;border-radius:11px;padding:11px;font:inherit}input[type=number]{min-width:0}textarea{resize:vertical;min-height:70px}input[type=color]{width:48px;height:38px;border:0;background:none;vertical-align:middle}input[type=range]{width:100%;accent-color:var(--accent)}
+.presets{display:flex;flex-wrap:wrap;gap:8px}.preset{padding:8px 11px;font-size:13px}.row{display:flex;align-items:center;gap:12px}.row>*{flex:1;min-width:0}
 .actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}.actions button{flex:1;min-width:100px;border:0;border-radius:12px;padding:13px;font-weight:700;cursor:pointer}.primary{background:var(--accent);color:#171221}.secondary{background:#333149;color:white}
 .hint{font-size:12px;color:var(--muted);line-height:1.5;margin-top:12px}
 small{color:var(--muted)}.tool-heading{font-weight:700;margin:20px 0 5px;color:#e6d9ff;font-size:14px}
@@ -29,13 +29,38 @@ small{color:var(--muted)}.tool-heading{font-weight:700;margin:20px 0 5px;color:#
 <h2>Live preview</h2>
 <div class="modes"><button id="homeBtn" class="active" type="button">Home screen</button><button id="lockBtn" type="button">Lock screen</button></div>
 <div class="preview-wrap"><canvas id="wallpaper" width="900" height="1950"></canvas></div>
-<div class="hint">Preview updates as you edit. Download your design as a high-resolution PNG.</div>
+<div class="hint" id="dimensionNote">Preview updates as you edit. Download your design as a high-resolution PNG.</div>
 </section>
 <section class="panel">
 <h2>Wallpaper studio</h2>
 <label>Choose a mood</label><div class="presets">
 <button class="preset" data-a="#25164a" data-b="#e08ca8">Dreamy</button><button class="preset" data-a="#0d3b46" data-b="#5ec5a8">Ocean</button><button class="preset" data-a="#351b16" data-b="#e6a45e">Sunset</button><button class="preset" data-a="#101827" data-b="#647da8">Midnight</button><button class="preset" data-a="#30203d" data-b="#b9a2d8">Lavender</button>
 </div>
+
+<div class="tool-heading">Device-specific layout</div>
+<label for="devicePreset">Choose a device / screen preset</label>
+<select id="devicePreset">
+<option value="1080x2340">Android phone · 1080 × 2340</option>
+<option value="1080x2400">Android phone · 1080 × 2400</option>
+<option value="1440x3200">Android QHD+ · 1440 × 3200</option>
+<option value="1179x2556">iPhone · 1179 × 2556</option>
+<option value="1290x2796">iPhone Pro Max · 1290 × 2796</option>
+<option value="1536x2048">Tablet portrait · 1536 × 2048</option>
+<option value="2048x1536">Tablet landscape · 2048 × 1536</option>
+<option value="custom">Custom dimensions</option>
+</select>
+<div class="row">
+  <div><label for="customWidth">Width (px)</label><input id="customWidth" type="number" min="320" max="8000" value="1080"></div>
+  <div><label for="customHeight">Height (px)</label><input id="customHeight" type="number" min="320" max="8000" value="2340"></div>
+</div>
+<label for="fitMode">Photo fitting</label>
+<select id="fitMode">
+<option value="cover">Fill · cover the screen (may crop)</option>
+<option value="contain">Fit · show the whole photo</option>
+<option value="stretch">Stretch · fill without preserving proportions</option>
+</select>
+<p class="hint">Choose a preset or enter your own pixel dimensions. The downloaded PNG uses the selected dimensions.</p>
+
 <label for="titleText">Main text</label><input id="titleText" type="text" maxlength="32" value="Make today beautiful">
 <label for="subText">Small text / quote</label><textarea id="subText" maxlength="100">A little progress every day.</textarea>
 <label>Background colours</label><div class="row"><div><small>Top</small><br><input id="colorA" type="color" value="#25164a"></div><div><small>Bottom</small><br><input id="colorB" type="color" value="#e08ca8"></div></div>
@@ -56,33 +81,56 @@ small{color:var(--muted)}.tool-heading{font-weight:700;margin:20px 0 5px;color:#
 <script>
 const $=id=>document.getElementById(id),canvas=$('wallpaper'),ctx=canvas.getContext('2d');
 let mode='home',photo=null,rotation=0,history=[],future=[],restoring=false;
-function state(){return {a:$('colorA').value,b:$('colorB').value,title:$('titleText').value,sub:$('subText').value,overlay:$('overlay').value,brightness:$('brightness').value,contrast:$('contrast').value,saturation:$('saturation').value,filter:$('filter').value,textSize:$('textSize').value,position:$('position').value,rotation}}
+function dimensions(){return {w:canvas.width,h:canvas.height}}
+function setDimensions(w,h){
+  w=Math.max(320,Math.min(8000,Math.round(Number(w)||1080)));
+  h=Math.max(320,Math.min(8000,Math.round(Number(h)||2340)));
+  canvas.width=w;canvas.height=h;canvas.style.aspectRatio=w+'/'+h;
+  $('customWidth').value=w;$('customHeight').value=h;
+  $('dimensionNote').textContent=`Preview · ${w} × ${h} px · ${ (w/h).toFixed(3) }:1 aspect ratio`;
+  draw();
+}
+function state(){return {a:$('colorA').value,b:$('colorB').value,title:$('titleText').value,sub:$('subText').value,overlay:$('overlay').value,brightness:$('brightness').value,contrast:$('contrast').value,saturation:$('saturation').value,filter:$('filter').value,textSize:$('textSize').value,position:$('position').value,rotation,fit:$('fitMode').value,w:canvas.width,h:canvas.height}}
 function snapshot(){if(restoring)return;history.push(state());if(history.length>40)history.shift();future=[]}
-function restore(s){if(!s)return;restoring=true;$('colorA').value=s.a;$('colorB').value=s.b;$('titleText').value=s.title;$('subText').value=s.sub;$('overlay').value=s.overlay;$('brightness').value=s.brightness;$('contrast').value=s.contrast;$('saturation').value=s.saturation;$('filter').value=s.filter;$('textSize').value=s.textSize;$('position').value=s.position;rotation=s.rotation;restoring=false;draw()}
+function restore(s){if(!s)return;restoring=true;$('colorA').value=s.a;$('colorB').value=s.b;$('titleText').value=s.title;$('subText').value=s.sub;$('overlay').value=s.overlay;$('brightness').value=s.brightness;$('contrast').value=s.contrast;$('saturation').value=s.saturation;$('filter').value=s.filter;$('textSize').value=s.textSize;$('position').value=s.position;$('fitMode').value=s.fit;rotation=s.rotation;setDimensions(s.w,s.h);restoring=false;draw()}
 function draw(){
  const w=canvas.width,h=canvas.height,a=$('colorA').value,b=$('colorB').value;
  const g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,a);g.addColorStop(1,b);ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
- if(photo){const rotated=rotation%180!==0,sourceW=rotated?photo.height:photo.width,sourceH=rotated?photo.width:photo.height,scale=Math.max(w/sourceW,h/sourceH),pw=photo.width*scale,ph=photo.height*scale;ctx.save();ctx.globalAlpha=Number($('overlay').value)/100;ctx.filter=`brightness(${$('brightness').value}%) contrast(${$('contrast').value}%) saturate(${$('saturation').value}%) ${$('filter').value==='none'?'':$('filter').value}`;ctx.translate(w/2,h/2);ctx.rotate(rotation*Math.PI/180);ctx.drawImage(photo,-pw/2,-ph/2,pw,ph);ctx.restore();ctx.fillStyle='rgba(10,8,22,.22)';ctx.fillRect(0,0,w,h)}
- const title=$('titleText').value,sub=$('subText').value,size=Number($('textSize').value)*1.5;
+ if(photo){
+   const rotated=rotation%180!==0,sourceW=rotated?photo.height:photo.width,sourceH=rotated?photo.width:photo.height;
+   const fit=$('fitMode').value;
+   const scale=fit==='contain'?Math.min(w/sourceW,h/sourceH):Math.max(w/sourceW,h/sourceH);
+   const pw=photo.width*scale,ph=photo.height*scale;
+   ctx.save();ctx.globalAlpha=Number($('overlay').value)/100;
+   ctx.filter=`brightness(${$('brightness').value}%) contrast(${$('contrast').value}%) saturate(${$('saturation').value}%) ${$('filter').value==='none'?'':$('filter').value}`;
+   ctx.translate(w/2,h/2);ctx.rotate(rotation*Math.PI/180);
+   if(fit==='stretch')ctx.drawImage(photo,-w/2,-h/2,w,h);
+   else ctx.drawImage(photo,-pw/2,-ph/2,pw,ph);
+   ctx.restore();ctx.fillStyle='rgba(10,8,22,.22)';ctx.fillRect(0,0,w,h);
+ }
+ const title=$('titleText').value,sub=$('subText').value;
+ const scaleFactor=h/1950,size=Number($('textSize').value)*1.5*scaleFactor;
  let y=$('position').value==='upper'?h*.31:$('position').value==='lower'?h*.69:mode==='lock'?h*.55:h*.49;
- ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor='rgba(0,0,0,.35)';ctx.shadowBlur=22;ctx.fillStyle='#fff';
- ctx.font='600 '+size+'px system-ui';wrap(title,w*.78,y,size*1.18);
- ctx.shadowBlur=10;ctx.font='400 36px system-ui';wrap(sub,w*.75,y+size*1.55,50);
+ ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor='rgba(0,0,0,.35)';ctx.shadowBlur=22*scaleFactor;ctx.fillStyle='#fff';
+ ctx.font=`600 ${size}px system-ui`;wrap(title,w*.78,y,size*1.18);
+ ctx.shadowBlur=10*scaleFactor;ctx.font=`400 ${36*scaleFactor}px system-ui`;wrap(sub,w*.75,y+size*1.55,50*scaleFactor);
  ctx.shadowBlur=0;
- if(mode==='lock'){ctx.fillStyle='rgba(255,255,255,.85)';ctx.font='300 100px system-ui';ctx.fillText('9:41',w/2,h*.13);ctx.font='32px system-ui';ctx.fillText('MONDAY  •  YOUR DAY',w/2,h*.18)}
+ if(mode==='lock'){ctx.fillStyle='rgba(255,255,255,.85)';ctx.font=`300 ${100*scaleFactor}px system-ui`;ctx.fillText('9:41',w/2,h*.13);ctx.font=`${32*scaleFactor}px system-ui`;ctx.fillText('MONDAY  •  YOUR DAY',w/2,h*.18)}
 }
 function wrap(text,maxWidth,y,lineH){const words=text.split(/\s+/);let line='',lines=[];for(const word of words){const test=line?line+' '+word:word;if(ctx.measureText(test).width>maxWidth&&line){lines.push(line);line=word}else line=test}if(line)lines.push(line);lines.forEach((l,i)=>ctx.fillText(l,canvas.width/2,y+(i-(lines.length-1)/2)*lineH))}
 function setMode(m){mode=m;$('homeBtn').classList.toggle('active',m==='home');$('lockBtn').classList.toggle('active',m==='lock');draw()}
-['titleText','subText','colorA','colorB','overlay','brightness','contrast','saturation','filter','textSize','position'].forEach(id=>$(id).addEventListener('input',()=>{snapshot();draw()}));
+['titleText','subText','colorA','colorB','overlay','brightness','contrast','saturation','filter','textSize','position','fitMode'].forEach(id=>$(id).addEventListener('input',()=>{snapshot();draw()}));
 $('homeBtn').onclick=()=>setMode('home');$('lockBtn').onclick=()=>setMode('lock');
 $('rotateBtn').onclick=()=>{snapshot();rotation=(rotation+90)%360;draw()};
 $('undoBtn').onclick=()=>{if(history.length){future.push(state());restore(history.pop())}};
 $('redoBtn').onclick=()=>{if(future.length){history.push(state());restore(future.pop())}};
 document.querySelectorAll('.preset').forEach(btn=>btn.onclick=()=>{snapshot();$('colorA').value=btn.dataset.a;$('colorB').value=btn.dataset.b;draw()});
+$('devicePreset').onchange=()=>{const v=$('devicePreset').value;if(v==='custom')return;const [w,h]=v.split('x').map(Number);snapshot();setDimensions(w,h)};
+['customWidth','customHeight'].forEach(id=>$(id).addEventListener('change',()=>{snapshot();$('devicePreset').value='custom';setDimensions($('customWidth').value,$('customHeight').value)}));
 $('photo').onchange=e=>{const f=e.target.files[0];if(!f)return;const img=new Image();img.onload=()=>{snapshot();photo=img;draw()};img.src=URL.createObjectURL(f)};
-$('resetBtn').onclick=()=>{snapshot();photo=null;rotation=0;$('photo').value='';$('titleText').value='Make today beautiful';$('subText').value='A little progress every day.';$('colorA').value='#25164a';$('colorB').value='#e08ca8';$('overlay').value=65;$('brightness').value=100;$('contrast').value=100;$('saturation').value=100;$('filter').value='none';$('textSize').value=66;$('position').value='middle';setMode('home')};
-$('downloadBtn').onclick=()=>{const a=document.createElement('a');a.download='wallpaper-maya-'+mode+'.png';a.href=canvas.toDataURL('image/png');a.click()};
-draw();
+$('resetBtn').onclick=()=>{snapshot();photo=null;rotation=0;$('photo').value='';$('titleText').value='Make today beautiful';$('subText').value='A little progress every day.';$('colorA').value='#25164a';$('colorB').value='#e08ca8';$('overlay').value=65;$('brightness').value=100;$('contrast').value=100;$('saturation').value=100;$('filter').value='none';$('textSize').value=66;$('position').value='middle';$('fitMode').value='cover';$('devicePreset').value='1080x2340';setDimensions(1080,2340);setMode('home')};
+$('downloadBtn').onclick=()=>{const a=document.createElement('a');a.download='wallpaper-maya-'+mode+'-'+canvas.width+'x'+canvas.height+'.png';a.href=canvas.toDataURL('image/png');a.click()};
+setDimensions(1080,2340);draw();
 </script>
 </body>
-                           </html>
+</html>
