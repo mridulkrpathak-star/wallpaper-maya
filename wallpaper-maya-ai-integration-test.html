@@ -149,7 +149,7 @@ function applyThreshold(){
  const c=out.getContext('2d'),im=c.createImageData(maskInputW,maskInputH);
  for(let y=0;y<maskInputH;y++)for(let x=0;x<maskInputW;x++){
    const sx=Math.min(maskW-1,Math.floor(x*maskW/maskInputW)),sy=Math.min(maskH-1,Math.floor(y*maskH/maskInputH)),v=combined[sy*maskW+sx];
-   const j=(y*maskInputW+x)*4;im.data[j]=255;im.data[j+1]=255;im.data[j+2]=255;im.data[j+3]=v>=t?255:0;
+   const j=(y*maskInputW+x)*4;im.data[j]=255;im.data[j+1]=255;im.data[j+2]=255;const lo=Math.max(0,t-0.07),hi=Math.min(1,t+0.07),q=Math.max(0,Math.min(1,(v-lo)/Math.max(0.001,hi-lo)));im.data[j+3]=Math.round((q*q*(3-2*q))*255);
  }
  c.putImageData(im,0,0);
  const pv=$('aiMaskPreview'),pc=pv.getContext('2d');pv.width=maskInputW;pv.height=maskInputH;pc.clearRect(0,0,pv.width,pv.height);pc.fillStyle='#10101b';pc.fillRect(0,0,pv.width,pv.height);pc.drawImage(out,0,0);
