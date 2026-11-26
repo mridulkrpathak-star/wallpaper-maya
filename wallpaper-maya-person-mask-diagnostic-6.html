@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#10121a">
+<title>Wallpaper Maya — Person Mask Diagnostic 6</title>
+<style>
+:root{color-scheme:dark;--bg:#10121a;--panel:#1b1e2b;--muted:#aeb4c7}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f5f5fb;font:16px system-ui,sans-serif}
+main{max-width:760px;margin:auto;padding:18px}h1{font-size:22px;margin:4px 0 8px}
+p{color:var(--muted);line-height:1.45}.panel{background:var(--panel);padding:16px;border-radius:16px;margin:14px 0}
+button{background:#7660d8;color:white;border:0;border-radius:11px;padding:13px 16px;font-weight:700;font-size:15px}
+button:disabled{opacity:.45}input[type=file]{max-width:100%;font-size:14px}
+canvas{display:block;width:100%;height:auto;background:#090a10;border-radius:12px}
+#status{white-space:pre-wrap;color:#d9d2ff;font-size:14px;margin-top:10px}
+.small{font-size:13px}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+label{display:block;margin-top:12px}.metric{font-variant-numeric:tabular-nums;color:#d9d2ff;line-height:1.65;white-space:pre-wrap}
+</style></head>
+<body><main>
+<h1>Wallpaper Maya — Person Mask Diagnostic 6</h1>
+<p>This is a separate test. It reads the MediaPipe mask's alpha channel directly, following the official compositing method. It does not replace the main app.</p>
+<div class="panel">
+ <b>1. Choose the same photograph</b>
+ <p class="small">Choose the same image you used in Diagnostic 5.</p>
+ <input id="photo" type="file" accept="image/*">
+ <div class="row" style="margin-top:14px"><button id="detect" disabled>Detect person</button><button id="clear" disabled>Clear photo</button></div>
+ <div id="status">Choose a photo to begin.</div>
+</div>
+<div class="panel">
+ <b>2. Alpha-channel diagnostics</b>
+ <p class="small">The alpha channel controls transparency. A useful mask should have a range of values, rather than making every pixel equally foreground or background.</p>
+ <div class="metric" id="stats">No mask measured yet.</div>
+ <label><input id="green" type="checkbox" checked> Show green foreground overlay</label>
+ <label><input id="maskOnly" type="checkbox"> Show alpha mask only (white = foreground)</label>
+</div>
+<div class="panel"><b>3. Diagnostic preview</b><canvas id="view" width="640" height="900"></canvas></div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
+<script>
+const $=id=>document.getElementById(id),canvas=$('view'),ctx=canvas.getContext('2d');
+let photo=null,segmenter=null,maskCanvas=null,greenCanvas=null,busy=false,photoUrl=null;
+function status(s){$('status').textContent=s}
+function dims(img){const scale=Math.min(640/img.naturalWidth,1100/img.naturalHeight,1);return [Math.max(1,Math.round(img.naturalWidth*scale)),Math.max(1,Math.round(img.naturalHeight*scale))]}
+function buildMask(source){
+ const w=source.width||source.videoWidth||source.naturalWidth,h=source.height||source.videoHeight||source.naturalHeight;
+ if(!w||!h)throw new Error('The model returned a mask with no readable dimensions.');
+ const raw=document.createElement('canvas');raw.width=w;raw.height=h;
+ const rctx=raw.getContext('2d',{willReadFrequently:true});rctx.drawImage(source,0,0,w,h);
+ const d=rctx.getImageData(0,0,w,h).data;
+ let amin=255,amax=0,asum=0,above32=0,above64=0,above128=0,above200=0,opaque=0,rgbMin=255,rgbMax=0;
+ const alpha=new Uint8ClampedArray(w*h);
+ for(let p=0,i=0;i<d.length;i+=4,p++){
+   const a=d[i+3],rgb=Math.max(d[i],d[i+1],d[i+2]);
+   alpha[p]=a;amin=Math.min(amin,a);amax=Math.max(amax,a);asum+=a;
+   if(a>32)above32++;if(a>64)above64++;if(a>128)above128++;if(a>200)above200++;
+   if(a===255)opaque++;rgbMin=Math.min(rgbMin,rgb);rgbMax=Math.max(rgbMax,rgb);
+ }
+ const mc=document.createElement('canvas');mc.width=w;mc.height=h;
+ const mctx=mc.getContext('2d');const out=mctx.createImageData(w,h);
+ for(let p=0,i=0;i<out.data.length;i+=4,p++){
+   const a=alpha[p];out.data[i]=out.data[i+1]=out.data[i+2]=255;out.data[i+3]=a;
+ }
+ mctx.putImageData(out,0,0);
+ const gc=document.createElement('canvas');gc.width=w;gc.height=h;
+ const gctx=gc.getContext('2d');gctx.fillStyle='#00ff55';gctx.fillRect(0,0,w,h);
+ gctx.globalCompositeOperation='destination-in';gctx.drawImage(mc,0,0);
+ maskCanvas=mc;greenCanvas=gc;
+ const n=w*h,avg=(asum/n).toFixed(2);
+ $('stats').textContent=`Mask size: ${w} × ${h} px
+Alpha values: min ${amin} · max ${amax} · average ${avg}
+Pixels alpha > 32: ${(100*above32/n).toFixed(2)}%
+Pixels alpha > 64: ${(100*above64/n).toFixed(2)}%
+Pixels alpha > 128: ${(100*above128/n).toFixed(2)}%
+Pixels alpha > 200: ${(100*above200/n).toFixed(2)}%
+Fully opaque pixels: ${(100*opaque/n).toFixed(2)}%
+RGB channel range (reference only): ${rgbMin}–${rgbMax}
+Mask source: alpha channel only`;
+ if(amin===amax)status('The alpha channel is uniform. This result cannot separate the person from the background; send the statistics screenshot.');
+ else status('Alpha mask received. Check whether the green overlay follows the person, not the background.');
+}
+function draw(){
+ if(!photo)return;const [w,h]=dims(photo);canvas.width=w;canvas.height=h;ctx.clearRect(0,0,w,h);
+ if($('maskOnly').checked&&maskCanvas){ctx.fillStyle='#111';ctx.fillRect(0,0,w,h);ctx.drawImage(maskCanvas,0,0,w,h)}
+ else{ctx.drawImage(photo,0,0,w,h);if(maskCanvas&&$('green').checked){ctx.save();ctx.globalAlpha=.62;ctx.drawImage(greenCanvas,0,0,w,h);ctx.restore()}}
+}
+async function getSegmenter(){
+ if(segmenter)return segmenter;
+ if(typeof SelfieSegmentation==='undefined')throw new Error('MediaPipe script did not load. Reload with internet access.');
+ segmenter=new SelfieSegmentation({locateFile:file=>`https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`});
+ segmenter.setOptions({modelSelection:0});
+ segmenter.onResults(results=>{
+  try{if(!results.segmentationMask)throw new Error('No segmentationMask was returned.');buildMask(results.segmentationMask);draw()}
+  catch(e){console.error(e);status('Mask processing error: '+e.message)}
+  busy=false;$('detect').disabled=false;
+ });
+ await segmenter.initialize();return segmenter;
+}
+$('photo').addEventListener('change',e=>{
+ const file=e.target.files&&e.target.files[0];if(!file)return;
+ if(photoUrl)URL.revokeObjectURL(photoUrl);photoUrl=URL.createObjectURL(file);
+ const img=new Image();img.onload=()=>{photo=img;maskCanvas=greenCanvas=null;$('stats').textContent='No mask measured yet.';$('detect').disabled=false;$('clear').disabled=false;draw();status('Photo loaded. Tap Detect person.')};
+ img.onerror=()=>status('Could not open this photo. Choose another image.');img.src=photoUrl;
+});
+$('detect').addEventListener('click',async()=>{
+ if(!photo||busy)return;busy=true;$('detect').disabled=true;status('Loading person model…');
+ try{const model=await getSegmenter();status('Analysing photo…');await model.send({image:photo})}
+ catch(err){busy=false;$('detect').disabled=false;console.error(err);status('Detection failed: '+(err?.message||err))}
+});
+$('green').addEventListener('change',draw);$('maskOnly').addEventListener('change',draw);
+$('clear').addEventListener('click',()=>{photo=null;maskCanvas=greenCanvas=null;ctx.clearRect(0,0,canvas.width,canvas.height);$('photo').value='';$('detect').disabled=true;$('clear').disabled=true;$('stats').textContent='No mask measured yet.';status('Photo cleared.')});
+</script></body></html>
