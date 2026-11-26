@@ -67,6 +67,7 @@ textarea{resize:vertical;min-height:70px}input[type=color]{width:48px;height:38p
 <div class="actions"><button class="secondary" id="aiBuildBtn" disabled>Build AI foreground</button><button class="secondary" id="aiClearBtn" disabled>Clear AI mask</button></div>
 <label for="aiThreshold">AI mask threshold: <span id="aiThresholdValue">0.35</span></label><input id="aiThreshold" type="range" min="10" max="85" value="35">
 <p class="hint" id="aiStatus">Choose a photo to enable automatic foreground detection.</p>
+<p class="hint" id="aiStats">No mask data yet.</p><div style="display:flex;justify-content:center;padding:8px 0"><canvas id="aiMaskPreview" width="256" height="256" style="width:min(100%,220px);height:auto;background:#10101b;border:1px solid #ffffff33;border-radius:12px"></canvas></div>
 <div class="actions"><button class="secondary" id="paintBtn">Paint foreground</button><button class="secondary" id="eraseBtn">Erase mask</button><button class="secondary" id="clearMaskBtn">Clear mask</button></div>
 <label for="brushSize">Brush size</label><input id="brushSize" type="range" min="8" max="150" value="35">
 <p class="hint" id="brushStatus">Brush is off. Select Paint foreground, then draw on the preview above.</p></div>
@@ -150,7 +151,11 @@ function applyThreshold(){
    const sx=Math.min(maskW-1,Math.floor(x*maskW/maskInputW)),sy=Math.min(maskH-1,Math.floor(y*maskH/maskInputH)),v=combined[sy*maskW+sx];
    const j=(y*maskInputW+x)*4;im.data[j]=255;im.data[j+1]=255;im.data[j+2]=255;im.data[j+3]=v>=t?255:0;
  }
- c.putImageData(im,0,0);window.__mayaSetAIMask?.(out);window.__mayaHasAIMask=true;updateAIButtons();aiStatus('AI foreground ready. Adjust the threshold if needed; the mask follows photo layout changes.');
+ c.putImageData(im,0,0);
+ const pv=$('aiMaskPreview'),pc=pv.getContext('2d');pv.width=maskInputW;pv.height=maskInputH;pc.clearRect(0,0,pv.width,pv.height);pc.fillStyle='#10101b';pc.fillRect(0,0,pv.width,pv.height);pc.drawImage(out,0,0);
+ let selected=0,min=1,max=0,sum=0;for(const v of combined){min=Math.min(min,v);max=Math.max(max,v);sum+=v;if(v>=t)selected++;}
+ $('aiStats').textContent='Mask: '+maskW+' × '+maskH+' px · Selected: '+(100*selected/combined.length).toFixed(1)+'% · Confidence min/max/avg: '+min.toFixed(2)+' / '+max.toFixed(2)+' / '+(sum/combined.length).toFixed(2);
+ window.__mayaSetAIMask?.(out);window.__mayaHasAIMask=true;updateAIButtons();aiStatus('AI foreground ready. White areas in the mask preview are the detected foreground.');
 }
 $('aiBuildBtn').addEventListener('click',async()=>{
  const photo=window.__mayaPhotoForAI?.();if(!photo||busy)return;busy=true;updateAIButtons();
