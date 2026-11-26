@@ -3,118 +3,114 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Wallpaper Maya — AI Depth Test</title>
+<title>Wallpaper Maya — Person Depth Test</title>
 <style>
 :root{color-scheme:dark;--bg:#10121a;--panel:#1b1e2b;--muted:#aeb4c7}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f5f5fb;font:15px system-ui,sans-serif}
-main{max-width:760px;margin:auto;padding:18px}h1{margin:4px 0 5px;font-size:25px}p{color:var(--muted);line-height:1.45}
-.panel{background:var(--panel);padding:15px;border-radius:16px;margin:14px 0}
-button{background:#7660d8;color:white;border:0;border-radius:10px;padding:11px 14px;font-weight:650}
-button:disabled{opacity:.45}.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
-input[type=file]{max-width:100%}input[type=range]{width:100%}
+main{max-width:760px;margin:auto;padding:18px}h1{font-size:24px;margin:4px 0 6px}
+p{color:var(--muted);line-height:1.45}.panel{background:var(--panel);padding:15px;border-radius:16px;margin:14px 0}
+button{background:#7660d8;color:white;border:0;border-radius:10px;padding:12px 15px;font-weight:650}
+button:disabled{opacity:.45}input[type=file]{max-width:100%}input[type=range]{width:100%}
 canvas{display:block;width:100%;height:auto;background:#090a10;border-radius:12px}
 #status{white-space:pre-wrap;color:#d9d2ff;font-size:14px;margin-top:10px}
-.small{font-size:12px}.checks{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
-label{display:flex;gap:8px;align-items:center;color:#e8e8f2}
+.small{font-size:12px}.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
 </style>
 </head>
 <body><main>
-<h1>Wallpaper Maya — AI Depth Test</h1>
-<p>Separate experiment only. This does not replace your live Wallpaper Maya app or change your GitHub files.</p>
+<h1>Wallpaper Maya — Person Depth Test</h1>
+<p>Lightweight experiment for detecting people. This is separate from your live app and does not replace Version 5.</p>
 <div class="panel">
-  <b>1. Choose a photo</b><p class="small">A clear photo with a person or another object in front of the background works best.</p>
-  <input id="photo" type="file" accept="image/*">
-  <div class="row" style="margin-top:12px"><button id="detect" disabled>Detect foreground objects</button><button id="reset" disabled>Reset</button></div>
-  <div id="status">Choose a photo to begin.</div>
+ <b>1. Choose a photo</b>
+ <p class="small">Best results with a clearly visible person. This model detects people, not trees or buildings.</p>
+ <input id="photo" type="file" accept="image/*">
+ <div class="row" style="margin-top:12px"><button id="detect" disabled>Detect person</button><button id="clear" disabled>Clear photo</button></div>
+ <div id="status">Choose a photo to begin.</div>
 </div>
 <div class="panel">
-  <b>2. Choose what should appear in front of the clock</b>
-  <p class="small">AI finds object regions. Select the detected categories that should cover the clock.</p>
-  <div id="choices" class="checks"><span class="small">Detected categories will appear here.</span></div>
-  <label style="margin-top:14px">Clock size <span id="sizeval">64</span> px</label>
-  <input id="size" type="range" min="34" max="100" value="64">
+ <b>2. Adjust the clock</b>
+ <label>Clock size: <span id="sizeval">64</span> px</label>
+ <input id="size" type="range" min="34" max="100" value="64">
+ <label>Clock vertical position: <span id="posval">18</span>%</label>
+ <input id="pos" type="range" min="8" max="55" value="18">
 </div>
 <div class="panel">
-  <b>3. Preview</b>
-  <canvas id="view" width="720" height="1280"></canvas>
-  <div class="row" style="margin-top:12px"><button id="save" disabled>Download test wallpaper</button></div>
-  <p class="small">The selected foreground regions are composited over the clock. AI segmentation is an estimate; inspect the result carefully.</p>
+ <b>3. Preview</b>
+ <canvas id="view" width="640" height="1138"></canvas>
+ <div class="row" style="margin-top:12px"><button id="save" disabled>Download test wallpaper</button></div>
+ <p class="small">If detection succeeds, the person mask is placed over the clock. Inspect the edges; this is a test, not a finished cut-out editor.</p>
 </div>
 </main>
-<script type="module">
-const $=id=>document.getElementById(id);
-const canvas=$('view'),ctx=canvas.getContext('2d');
-let photo=null, photoURL=null, results=[], selected=new Set(), masks=[], busy=false;
-let modulePromise;
-async function loadModel(){
-  if(!modulePromise) modulePromise=import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2');
-  const {pipeline,env}=await modulePromise;
-  env.allowLocalModels=false;
-  return pipeline('image-segmentation','Xenova/segformer-b0-finetuned-ade-512-512',{device:'wasm',dtype:'q8'});
-}
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
+<script>
+const $=id=>document.getElementById(id),canvas=$('view'),ctx=canvas.getContext('2d');
+let photo=null,segmenter=null,personMask=null,busy=false,photoUrl=null;
+let sourceW=0,sourceH=0;
 function status(s){$('status').textContent=s}
+function dimensions(img){
+ const scale=Math.min(640/img.naturalWidth,1138/img.naturalHeight,1);
+ return [Math.max(1,Math.round(img.naturalWidth*scale)),Math.max(1,Math.round(img.naturalHeight*scale))];
+}
 function draw(){
  if(!photo)return;
- const scale=Math.min(720/photo.width,1280/photo.height);
- canvas.width=Math.max(1,Math.round(photo.width*scale));canvas.height=Math.max(1,Math.round(photo.height*scale));
- ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(photo,0,0,canvas.width,canvas.height);
- const x=canvas.width*.5,y=canvas.height*.13;
- const font=Math.min(Number($('size').value),canvas.width*.17);
- ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';
- ctx.shadowColor='rgba(0,0,0,.45)';ctx.shadowBlur=8;ctx.fillStyle='white';
- ctx.font=`300 ${font}px system-ui`;ctx.fillText('9:41',x,y);
- ctx.font=`400 ${Math.max(12,font*.22)}px system-ui`;ctx.fillText(new Date().toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}),x,y+font*.7);
+ const [w,h]=dimensions(photo);canvas.width=w;canvas.height=h;
+ ctx.clearRect(0,0,w,h);ctx.drawImage(photo,0,0,w,h);
+ const clockY=h*Number($('pos').value)/100,fs=Math.min(Number($('size').value),w*.17);
+ ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='white';
+ ctx.shadowColor='rgba(0,0,0,.5)';ctx.shadowBlur=8;
+ ctx.font=`300 ${fs}px system-ui`;ctx.fillText('9:41',w/2,clockY);
+ ctx.font=`400 ${Math.max(12,fs*.22)}px system-ui`;
+ ctx.fillText(new Date().toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}),w/2,clockY+fs*.7);
  ctx.restore();
- for(const item of masks){
-   if(!selected.has(item.label))continue;
-   const m=item.mask;if(!m)continue;
-   const mw=m.width||m.dims?.[1],mh=m.height||m.dims?.[0],data=m.data;
-   if(!mw||!mh||!data)continue;
-   const off=document.createElement('canvas');off.width=mw;off.height=mh;
-   const oc=off.getContext('2d'),im=oc.createImageData(mw,mh);
-   for(let i=0;i<mw*mh;i++){const a=Number(data[i])>0?255:0;im.data[i*4]=255;im.data[i*4+1]=255;im.data[i*4+2]=255;im.data[i*4+3]=a}
-   oc.putImageData(im,0,0);
-   const cut=document.createElement('canvas');cut.width=canvas.width;cut.height=canvas.height;
-   const cc=cut.getContext('2d');cc.drawImage(photo,0,0,canvas.width,canvas.height);
-   cc.globalCompositeOperation='destination-in';cc.drawImage(off,0,0,canvas.width,canvas.height);
+ if(personMask){
+   const cut=document.createElement('canvas');cut.width=w;cut.height=h;
+   const cc=cut.getContext('2d');cc.drawImage(photo,0,0,w,h);
+   cc.globalCompositeOperation='destination-in';cc.drawImage(personMask,0,0,w,h);
    ctx.drawImage(cut,0,0);
  }
  $('save').disabled=false;
 }
+function makeAlphaMask(maskCanvas){
+ const tmp=document.createElement('canvas');tmp.width=maskCanvas.width;tmp.height=maskCanvas.height;
+ const t=tmp.getContext('2d');t.drawImage(maskCanvas,0,0);
+ const im=t.getImageData(0,0,tmp.width,tmp.height);
+ for(let i=0;i<im.data.length;i+=4){
+   const a=im.data[i];im.data[i]=255;im.data[i+1]=255;im.data[i+2]=255;im.data[i+3]=a;
+ }
+ t.putImageData(im,0,0);return tmp;
+}
+async function getSegmenter(){
+ if(segmenter)return segmenter;
+ if(typeof SelfieSegmentation==='undefined')throw new Error('The AI library did not load. Check your internet connection and reload this page.');
+ segmenter=new SelfieSegmentation({locateFile:(file)=>`https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`});
+ segmenter.setOptions({modelSelection:1});
+ segmenter.onResults(results=>{
+   if(!photo)return;
+   personMask=makeAlphaMask(results.segmentationMask);
+   draw();
+   status('Person detection finished. The detected person should now appear in front of the clock.');
+   busy=false;$('detect').disabled=false;
+ });
+ await segmenter.initialize();
+ return segmenter;
+}
 $('photo').addEventListener('change',e=>{
- const f=e.target.files?.[0];if(!f)return;
- if(photoURL)URL.revokeObjectURL(photoURL);
- photoURL=URL.createObjectURL(f);
+ const file=e.target.files&&e.target.files[0];if(!file)return;
+ if(photoUrl)URL.revokeObjectURL(photoUrl);photoUrl=URL.createObjectURL(file);
  const img=new Image();
- img.onload=()=>{photo=img;results=[];masks=[];selected.clear();$('choices').innerHTML='';$('detect').disabled=false;$('reset').disabled=false;draw();status('Photo loaded. Tap “Detect foreground objects”.')};
- img.onerror=()=>status('Could not open that image. Try another photo.');
- img.src=photoURL;
+ img.onload=()=>{photo=img;personMask=null;$('detect').disabled=false;$('clear').disabled=false;draw();status('Photo loaded. Tap “Detect person”.')};
+ img.onerror=()=>status('Could not open this photo. Please choose another.');
+ img.src=photoUrl;
 });
 $('detect').addEventListener('click',async()=>{
- if(!photo||!photoURL||busy)return;busy=true;$('detect').disabled=true;$('choices').innerHTML='';
- status('Loading the AI model. The first load may take a little while and needs internet access…');
+ if(!photo||busy)return;busy=true;$('detect').disabled=true;
+ status('Loading the lightweight person-segmentation model. First load needs internet and may take a moment…');
  try{
-  const segment=await loadModel();status('Analysing the photo…');
-  // Transformers.js expects an image URL/Blob/RawImage, not an HTMLImageElement.
-  const out=await segment(photoURL);
-  results=Array.isArray(out)?out:[out];
-  masks=results.map(r=>({label:r.label||'object',mask:r.mask,score:r.score??0})).filter(x=>x.mask);
-  const labels=[...new Set(masks.map(x=>x.label))];
-  if(!labels.length)throw new Error('The model did not return usable masks for this image.');
-  $('choices').innerHTML='';
-  labels.forEach((label,i)=>{
-    const wrap=document.createElement('label'),input=document.createElement('input');
-    input.type='checkbox';input.id='obj'+i;
-    input.checked=/person|tree|plant|building|car|animal|furniture|chair|sofa|mountain|rock/i.test(label);
-    if(input.checked)selected.add(label);
-    input.addEventListener('change',()=>{if(input.checked)selected.add(label);else selected.delete(label);draw()});
-    wrap.append(input,document.createTextNode(label));$('choices').append(wrap);
-  });
-  draw();status(`Detection finished. Found ${labels.length} object categories. Tick the categories you want in front of the clock.`);
- }catch(err){console.error(err);status('AI detection could not run: '+(err?.message||err)+'\nCheck your internet connection and try again. This test needs a modern browser with WebAssembly support.');}
- finally{busy=false;$('detect').disabled=false}
+   const model=await getSegmenter();status('Analysing the person in your photo…');
+   await model.send({image:photo});
+ }catch(err){busy=false;$('detect').disabled=false;console.error(err);status('Detection failed: '+(err&&err.message?err.message:err)+'\nPlease reload and try once more.');}
 });
 $('size').addEventListener('input',()=>{$('sizeval').textContent=$('size').value;draw()});
-$('reset').addEventListener('click',()=>{selected.clear();$('choices').querySelectorAll('input').forEach(x=>x.checked=false);draw();status('Selection cleared. The clock is now in front of the photo.')});
-$('save').addEventListener('click',()=>{const a=document.createElement('a');a.download='wallpaper-maya-ai-depth-test.png';a.href=canvas.toDataURL('image/png');a.click()});
+$('pos').addEventListener('input',()=>{$('posval').textContent=$('pos').value;draw()});
+$('clear').addEventListener('click',()=>{photo=null;personMask=null;ctx.clearRect(0,0,canvas.width,canvas.height);$('photo').value='';$('detect').disabled=true;$('clear').disabled=true;$('save').disabled=true;status('Photo cleared.')});
+$('save').addEventListener('click',()=>{const a=document.createElement('a');a.download='wallpaper-maya-person-depth-test.png';a.href=canvas.toDataURL('image/png');a.click()});
 </script></body></html>
