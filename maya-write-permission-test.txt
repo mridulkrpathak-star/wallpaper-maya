@@ -1,0 +1,2 @@
+Wallpaper Maya GitHub write-permission test.
+This temporary file confirms ChatGPT can write to the v5-backup branch.
