@@ -16,8 +16,9 @@ canvas{width:min(100%,330px);height:auto;aspect-ratio:9/19.5;border-radius:27px;
 .modes{display:flex;gap:8px;margin-bottom:16px}.modes button,.preset{border:1px solid #ffffff24;background:#29283b;color:#fff;border-radius:12px;padding:10px 13px;cursor:pointer}.modes button.active{background:var(--accent);color:#171221;border-color:transparent;font-weight:700}
 label{display:block;color:#e8e5f1;font-size:13px;margin:14px 0 7px}input[type=text],textarea,select{width:100%;background:#11111d;color:#fff;border:1px solid #ffffff25;border-radius:11px;padding:11px;font:inherit}textarea{resize:vertical;min-height:70px}input[type=color]{width:48px;height:38px;border:0;background:none;vertical-align:middle}input[type=range]{width:100%;accent-color:var(--accent)}
 .presets{display:flex;flex-wrap:wrap;gap:8px}.preset{padding:8px 11px;font-size:13px}.row{display:flex;align-items:center;gap:12px}.row>*{flex:1}
-.actions{display:flex;gap:10px;margin-top:20px}.actions button{flex:1;border:0;border-radius:12px;padding:13px;font-weight:700;cursor:pointer}.primary{background:var(--accent);color:#171221}.secondary{background:#333149;color:white}
+.actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}.actions button{flex:1;min-width:100px;border:0;border-radius:12px;padding:13px;font-weight:700;cursor:pointer}.primary{background:var(--accent);color:#171221}.secondary{background:#333149;color:white}
 .hint{font-size:12px;color:var(--muted);line-height:1.5;margin-top:12px}
+small{color:var(--muted)}.tool-heading{font-weight:700;margin:20px 0 5px;color:#e6d9ff;font-size:14px}
 @media(max-width:760px){main{grid-template-columns:1fr;padding:10px 13px 28px}header{padding:18px 15px 8px}.panel{padding:15px}.preview-wrap{padding:5px 0}canvas{width:min(78vw,300px)}}
 </style>
 </head>
@@ -40,6 +41,12 @@ label{display:block;color:#e8e5f1;font-size:13px;margin:14px 0 7px}input[type=te
 <label>Background colours</label><div class="row"><div><small>Top</small><br><input id="colorA" type="color" value="#25164a"></div><div><small>Bottom</small><br><input id="colorB" type="color" value="#e08ca8"></div></div>
 <label for="photo">Add your own photo</label><input id="photo" type="file" accept="image/*">
 <label for="overlay">Photo / gradient balance</label><input id="overlay" type="range" min="0" max="100" value="65">
+<div class="tool-heading">Photo editor</div>
+<label for="brightness">Brightness</label><input id="brightness" type="range" min="50" max="150" value="100">
+<label for="contrast">Contrast</label><input id="contrast" type="range" min="50" max="150" value="100">
+<label for="saturation">Saturation</label><input id="saturation" type="range" min="0" max="200" value="100">
+<label for="filter">Artistic filter</label><select id="filter"><option value="none">Original</option><option value="grayscale(1)">Black &amp; white</option><option value="sepia(1)">Vintage</option><option value="saturate(1.8)">Vivid</option><option value="hue-rotate(35deg)">Dream tint</option><option value="blur(2px)">Soft focus</option></select>
+<div class="actions"><button class="secondary" id="rotateBtn" type="button">↻ Rotate photo</button><button class="secondary" id="undoBtn" type="button">↶ Undo</button><button class="secondary" id="redoBtn" type="button">↷ Redo</button></div>
 <label for="textSize">Text size</label><input id="textSize" type="range" min="36" max="100" value="66">
 <label for="position">Text position</label><select id="position"><option value="middle">Middle</option><option value="upper">Upper third</option><option value="lower">Lower third</option></select>
 <div class="actions"><button class="secondary" id="resetBtn" type="button">Reset</button><button class="primary" id="downloadBtn" type="button">↓ Download PNG</button></div>
@@ -48,11 +55,14 @@ label{display:block;color:#e8e5f1;font-size:13px;margin:14px 0 7px}input[type=te
 </main>
 <script>
 const $=id=>document.getElementById(id),canvas=$('wallpaper'),ctx=canvas.getContext('2d');
-let mode='home',photo=null;
+let mode='home',photo=null,rotation=0,history=[],future=[],restoring=false;
+function state(){return {a:$('colorA').value,b:$('colorB').value,title:$('titleText').value,sub:$('subText').value,overlay:$('overlay').value,brightness:$('brightness').value,contrast:$('contrast').value,saturation:$('saturation').value,filter:$('filter').value,textSize:$('textSize').value,position:$('position').value,rotation}}
+function snapshot(){if(restoring)return;history.push(state());if(history.length>40)history.shift();future=[]}
+function restore(s){if(!s)return;restoring=true;$('colorA').value=s.a;$('colorB').value=s.b;$('titleText').value=s.title;$('subText').value=s.sub;$('overlay').value=s.overlay;$('brightness').value=s.brightness;$('contrast').value=s.contrast;$('saturation').value=s.saturation;$('filter').value=s.filter;$('textSize').value=s.textSize;$('position').value=s.position;rotation=s.rotation;restoring=false;draw()}
 function draw(){
  const w=canvas.width,h=canvas.height,a=$('colorA').value,b=$('colorB').value;
  const g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,a);g.addColorStop(1,b);ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
- if(photo){const scale=Math.max(w/photo.width,h/photo.height),pw=photo.width*scale,ph=photo.height*scale;ctx.save();ctx.globalAlpha=Number($('overlay').value)/100;ctx.drawImage(photo,(w-pw)/2,(h-ph)/2,pw,ph);ctx.restore();ctx.fillStyle='rgba(10,8,22,.22)';ctx.fillRect(0,0,w,h)}
+ if(photo){const rotated=rotation%180!==0,sourceW=rotated?photo.height:photo.width,sourceH=rotated?photo.width:photo.height,scale=Math.max(w/sourceW,h/sourceH),pw=photo.width*scale,ph=photo.height*scale;ctx.save();ctx.globalAlpha=Number($('overlay').value)/100;ctx.filter=`brightness(${$('brightness').value}%) contrast(${$('contrast').value}%) saturate(${$('saturation').value}%) ${$('filter').value==='none'?'':$('filter').value}`;ctx.translate(w/2,h/2);ctx.rotate(rotation*Math.PI/180);ctx.drawImage(photo,-pw/2,-ph/2,pw,ph);ctx.restore();ctx.fillStyle='rgba(10,8,22,.22)';ctx.fillRect(0,0,w,h)}
  const title=$('titleText').value,sub=$('subText').value,size=Number($('textSize').value)*1.5;
  let y=$('position').value==='upper'?h*.31:$('position').value==='lower'?h*.69:mode==='lock'?h*.55:h*.49;
  ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor='rgba(0,0,0,.35)';ctx.shadowBlur=22;ctx.fillStyle='#fff';
@@ -63,13 +73,16 @@ function draw(){
 }
 function wrap(text,maxWidth,y,lineH){const words=text.split(/\s+/);let line='',lines=[];for(const word of words){const test=line?line+' '+word:word;if(ctx.measureText(test).width>maxWidth&&line){lines.push(line);line=word}else line=test}if(line)lines.push(line);lines.forEach((l,i)=>ctx.fillText(l,canvas.width/2,y+(i-(lines.length-1)/2)*lineH))}
 function setMode(m){mode=m;$('homeBtn').classList.toggle('active',m==='home');$('lockBtn').classList.toggle('active',m==='lock');draw()}
-['titleText','subText','colorA','colorB','overlay','textSize','position'].forEach(id=>$(id).addEventListener('input',draw));
+['titleText','subText','colorA','colorB','overlay','brightness','contrast','saturation','filter','textSize','position'].forEach(id=>$(id).addEventListener('input',()=>{snapshot();draw()}));
 $('homeBtn').onclick=()=>setMode('home');$('lockBtn').onclick=()=>setMode('lock');
-document.querySelectorAll('.preset').forEach(btn=>btn.onclick=()=>{$('colorA').value=btn.dataset.a;$('colorB').value=btn.dataset.b;draw()});
-$('photo').onchange=e=>{const f=e.target.files[0];if(!f)return;const img=new Image();img.onload=()=>{photo=img;draw()};img.src=URL.createObjectURL(f)};
-$('resetBtn').onclick=()=>{photo=null;$('photo').value='';$('titleText').value='Make today beautiful';$('subText').value='A little progress every day.';$('colorA').value='#25164a';$('colorB').value='#e08ca8';$('overlay').value=65;$('textSize').value=66;$('position').value='middle';setMode('home')};
+$('rotateBtn').onclick=()=>{snapshot();rotation=(rotation+90)%360;draw()};
+$('undoBtn').onclick=()=>{if(history.length){future.push(state());restore(history.pop())}};
+$('redoBtn').onclick=()=>{if(future.length){history.push(state());restore(future.pop())}};
+document.querySelectorAll('.preset').forEach(btn=>btn.onclick=()=>{snapshot();$('colorA').value=btn.dataset.a;$('colorB').value=btn.dataset.b;draw()});
+$('photo').onchange=e=>{const f=e.target.files[0];if(!f)return;const img=new Image();img.onload=()=>{snapshot();photo=img;draw()};img.src=URL.createObjectURL(f)};
+$('resetBtn').onclick=()=>{snapshot();photo=null;rotation=0;$('photo').value='';$('titleText').value='Make today beautiful';$('subText').value='A little progress every day.';$('colorA').value='#25164a';$('colorB').value='#e08ca8';$('overlay').value=65;$('brightness').value=100;$('contrast').value=100;$('saturation').value=100;$('filter').value='none';$('textSize').value=66;$('position').value='middle';setMode('home')};
 $('downloadBtn').onclick=()=>{const a=document.createElement('a');a.download='wallpaper-maya-'+mode+'.png';a.href=canvas.toDataURL('image/png');a.click()};
 draw();
 </script>
 </body>
-</html>
+                           </html>
