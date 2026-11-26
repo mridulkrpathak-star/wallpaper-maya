@@ -108,16 +108,16 @@ $('homeBtn').onclick=()=>setMode('home');$('lockBtn').onclick=()=>setMode('lock'
 document.querySelectorAll('.preset').forEach(b=>b.onclick=()=>{snapshot();$('colorA').value=b.dataset.a;$('colorB').value=b.dataset.b;draw()});
 $('devicePreset').onchange=()=>{let v=$('devicePreset').value;if(v!=='custom'){let [w,h]=v.split('x').map(Number);setDimensions(w,h)}};
 ['customWidth','customHeight'].forEach(id=>$(id).onchange=()=>{$('devicePreset').value='custom';setDimensions($('customWidth').value,$('customHeight').value)});
-$('photo').onchange=e=>{let f=e.target.files[0];if(!f)return;let img=new Image();img.onload=()=>{photo=img;aiMaskSource=null;maskCtx.clearRect(0,0,mask.width,mask.height);window.updateAIButtons&&window.updateAIButtons();draw()};img.src=URL.createObjectURL(f)};
+$('photo').onchange=e=>{let f=e.target.files[0];if(!f)return;let img=new Image();img.onload=()=>{photo=img;aiMaskSource=null;window.__mayaPhotoChanged?.();maskCtx.clearRect(0,0,mask.width,mask.height);window.updateAIButtons&&window.updateAIButtons();draw()};img.src=URL.createObjectURL(f)};
 $('rotateBtn').onclick=()=>{rotation=(rotation+90)%360;draw()};
 $('paintBtn').onclick=()=>setBrush(brushMode==='paint'?'off':'paint');$('eraseBtn').onclick=()=>setBrush(brushMode==='erase'?'off':'erase');
 $('clearMaskBtn').onclick=()=>{maskCtx.clearRect(0,0,mask.width,mask.height);draw()};
 $('undoBtn').onclick=()=>{if(history.length){future.push(state());restore(history.pop())}};$('redoBtn').onclick=()=>{if(future.length){history.push(state());restore(future.pop())}};
-$('resetBtn').onclick=()=>{photo=null;aiMaskSource=null;window.updateAIButtons&&window.updateAIButtons();rotation=0;maskCtx.clearRect(0,0,mask.width,mask.height);$('photo').value='';$('titleText').value='Make today beautiful';$('subText').value='A little progress every day.';$('colorA').value='#25164a';$('colorB').value='#e08ca8';$('overlay').value=65;$('brightness').value=100;$('contrast').value=100;$('saturation').value=100;$('filter').value='none';$('textSize').value=66;$('position').value='middle';$('fitMode').value='cover';$('devicePreset').value='1080x2340';$('clockFormat').value='12';$('clockStyle').value='modern';$('clockColor').value='#ffffff';$('clockSize').value=115;$('clockPosition').value='top';$('clockOffset').value=0;$('dateText').value='MONDAY  •  YOUR DAY';$('showClock').value='yes';$('showDate').value='yes';setBrush('off');setDimensions(1080,2340);setMode('home')};
+$('resetBtn').onclick=()=>{photo=null;aiMaskSource=null;window.__mayaPhotoChanged?.();window.updateAIButtons&&window.updateAIButtons();rotation=0;maskCtx.clearRect(0,0,mask.width,mask.height);$('photo').value='';$('titleText').value='Make today beautiful';$('subText').value='A little progress every day.';$('colorA').value='#25164a';$('colorB').value='#e08ca8';$('overlay').value=65;$('brightness').value=100;$('contrast').value=100;$('saturation').value=100;$('filter').value='none';$('textSize').value=66;$('position').value='middle';$('fitMode').value='cover';$('devicePreset').value='1080x2340';$('clockFormat').value='12';$('clockStyle').value='modern';$('clockColor').value='#ffffff';$('clockSize').value=115;$('clockPosition').value='top';$('clockOffset').value=0;$('dateText').value='MONDAY  •  YOUR DAY';$('showClock').value='yes';$('showDate').value='yes';setBrush('off');setDimensions(1080,2340);setMode('home')};
 $('downloadBtn').onclick=()=>{draw(false);let a=document.createElement('a');a.download=`wallpaper-maya-${mode}-${canvas.width}x${canvas.height}.png`;a.href=canvas.toDataURL('image/png');a.click();draw()};
 
 window.__mayaPhotoForAI=()=>photo;
-window.__mayaSetAIMask=(m)=>{aiMaskSource=m;draw()};
+window.__mayaSetAIMask=(m)=>{aiMaskSource=m;window.__mayaHasAIMask=!!m;draw()};
 
 setDimensions(1080,2340);draw();
 </script>
@@ -126,7 +126,8 @@ const $=id=>document.getElementById(id);
 let segmenter=null, combined=null, maskW=0, maskH=0, maskInputW=0, maskInputH=0, busy=false;
 function aiStatus(s){$('aiStatus').textContent=s}
 function updateAIButtons(){const hasPhoto=!!window.getPhotoForAI?.();$('aiBuildBtn').disabled=!hasPhoto||busy;$('aiClearBtn').disabled=!window.hasAIMask?.()}
-window.getPhotoForAI=()=>{return document.getElementById('photo').files?.length?window.__mayaPhotoForAI?.():window.__mayaPhotoForAI?.()};
+window.getPhotoForAI=()=>window.__mayaPhotoForAI?.()||null;
+window.__mayaPhotoChanged=()=>{combined=null;window.__mayaSetAIMask?.(null);window.__mayaHasAIMask=false;updateAIButtons();aiStatus('New photo loaded. Build a fresh AI foreground mask.');};
 window.hasAIMask=()=>!!window.__mayaHasAIMask;
 window.updateAIButtons=updateAIButtons;
 document.getElementById('aiThreshold').addEventListener('input',()=>{
