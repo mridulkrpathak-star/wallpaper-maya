@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wallpaper Maya — AI Depth Test</title>
+<style>
+:root{color-scheme:dark;--bg:#10121a;--panel:#1b1e2b;--muted:#aeb4c7;--accent:#a78bfa}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f5f5fb;font:15px system-ui,sans-serif}
+main{max-width:760px;margin:auto;padding:18px}h1{margin:4px 0 5px;font-size:25px}p{color:var(--muted);line-height:1.45}
+.panel{background:var(--panel);padding:15px;border-radius:16px;margin:14px 0}
+button,.file{background:#7660d8;color:white;border:0;border-radius:10px;padding:11px 14px;font-weight:650;display:inline-block}
+button:disabled{opacity:.45}.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+input[type=file]{max-width:100%}input[type=range]{width:100%}
+canvas{display:block;width:100%;height:auto;background:#090a10;border-radius:12px}
+#status{white-space:pre-wrap;color:#d9d2ff;font-size:14px;margin-top:10px}
+.small{font-size:12px}.hidden{display:none}.checks{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+label{display:flex;gap:8px;align-items:center;color:#e8e8f2}
+</style>
+</head>
+<body><main>
+<h1>Wallpaper Maya — AI Depth Test</h1>
+<p>Separate experiment only. This does not replace your live Wallpaper Maya app or change your GitHub files.</p>
+<div class="panel">
+  <b>1. Choose a photo</b><p class="small">A clear photo with a person or another object in front of the background works best.</p>
+  <input id="photo" type="file" accept="image/*">
+  <div class="row" style="margin-top:12px"><button id="detect" disabled>Detect foreground objects</button><button id="reset" disabled>Reset</button></div>
+  <div id="status">Choose a photo to begin.</div>
+</div>
+<div class="panel">
+  <b>2. Choose what should appear in front of the clock</b>
+  <p class="small">AI finds object regions. Select the detected categories that should cover the clock.</p>
+  <div id="choices" class="checks"><span class="small">Detected categories will appear here.</span></div>
+  <label style="margin-top:14px">Clock size <span id="sizeval">64</span> px</label>
+  <input id="size" type="range" min="34" max="100" value="64">
+</div>
+<div class="panel">
+  <b>3. Preview</b>
+  <canvas id="view" width="720" height="1280"></canvas>
+  <div class="row" style="margin-top:12px"><button id="save" disabled>Download test wallpaper</button></div>
+  <p class="small">The selected foreground regions are composited over the clock. AI segmentation is an estimate; inspect the result carefully.</p>
+</div>
+</main>
+<script type="module">
+const $=id=>document.getElementById(id);
+const canvas=$('view'),ctx=canvas.getContext('2d');
+let photo=null, results=[], selected=new Set(), masks=[], busy=false;
+let modulePromise;
+async function loadModel(){
+  if(!modulePromise) modulePromise=import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2');
+  const {pipeline,env}=await modulePromise;
+  env.allowLocalModels=false;
+  return pipeline('image-segmentation','Xenova/segformer-b0-finetuned-ade-512-512',{device:'wasm',dtype:'q8'});
+}
+function status(s){$('status').textContent=s}
+function draw(){
+ if(!photo)return;
+ const scale=Math.min(720/photo.width,1280/photo.height);
+ canvas.width=Math.max(1,Math.round(photo.width*scale));canvas.height=Math.max(1,Math.round(photo.height*scale));
+ ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(photo,0,0,canvas.width,canvas.height);
+ const x=canvas.width*.5,y=canvas.height*.13;
+ const font=Math.min(Number($('size').value),canvas.width*.17);
+ ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';
+ ctx.shadowColor='rgba(0,0,0,.45)';ctx.shadowBlur=8;ctx.fillStyle='white';
+ ctx.font=`300 ${font}px system-ui`;ctx.fillText('9:41',x,y);
+ ctx.font=`400 ${Math.max(12,font*.22)}px system-ui`;ctx.fillText(new Date().toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}),x,y+font*.7);
+ ctx.restore();
+ // Repaint selected object masks from original photo over the clock.
+ for(const item of masks){
+   if(!selected.has(item.label))continue;
+   const m=item.mask;
+   if(!m)continue;
+   const mw=m.width||m.dims?.[1], mh=m.height||m.dims?.[0];
+   const data=m.data;
+   if(!mw||!mh||!data)continue;
+   const off=document.createElement('canvas');off.width=mw;off.height=mh;
+   const oc=off.getContext('2d'),im=oc.createImageData(mw,mh);
+   for(let i=0;i<mw*mh;i++){
+     const v=Number(data[i]);const a=(v>0?255:0);
+     im.data[i*4]=255;im.data[i*4+1]=255;im.data[i*4+2]=255;im.data[i*4+3]=a;
+   }
+   oc.putImageData(im,0,0);
+   const cut=document.createElement('canvas');cut.width=canvas.width;cut.height=canvas.height;
+   const cc=cut.getContext('2d');cc.drawImage(photo,0,0,canvas.width,canvas.height);
+   cc.globalCompositeOperation='destination-in';cc.drawImage(off,0,0,canvas.width,canvas.height);
+   ctx.drawImage(cut,0,0);
+ }
+ $('save').disabled=false;
+}
+function maskFrom(item){
+ const m=item.mask;
+ if(!m)return null;
+ return m;
+}
+$('photo').addEventListener('change',e=>{
+ const f=e.target.files?.[0];if(!f)return;
+ const url=URL.createObjectURL(f),img=new Image();
+ img.onload=()=>{photo=img;results=[];masks=[];selected.clear();$('choices').innerHTML='';$('detect').disabled=false;$('reset').disabled=false;draw();status('Photo loaded. Tap “Detect foreground objects”.');URL.revokeObjectURL(url)};
+ img.onerror=()=>status('Could not open that image. Try another photo.');
+ img.src=url;
+});
+$('detect').addEventListener('click',async()=>{
+ if(!photo||busy)return;busy=true;$('detect').disabled=true;$('choices').innerHTML='';
+ status('Loading the AI model. The first load may take a little while and needs internet access…');
+ try{
+  const segment=await loadModel();status('Analysing the photo…');
+  const out=await segment(photo);
+  results=Array.isArray(out)?out:[out];
+  masks=results.map(r=>({label:r.label||'object',mask:maskFrom(r),score:r.score??0})).filter(x=>x.mask);
+  const labels=[...new Set(masks.map(x=>x.label))];
+  if(!labels.length)throw new Error('The model did not return usable masks for this image.');
+  $('choices').innerHTML='';
+  labels.forEach((label,i)=>{
+    const id='obj'+i,wrap=document.createElement('label'),input=document.createElement('input');
+    input.type='checkbox';input.id=id;input.checked=/person|tree|plant|building|car|animal|furniture|chair|sofa|mountain|rock/i.test(label);
+    if(input.checked)selected.add(label);
+    input.addEventListener('change',()=>{if(input.checked)selected.add(label);else selected.delete(label);draw()});
+    wrap.append(input,document.createTextNode(label));$('choices').append(wrap);
+  });
+  draw();status(`Detection finished. Found ${labels.length} object categories. Tick the categories you want in front of the clock.`);
+ }catch(err){console.error(err);status('AI detection could not run: '+(err?.message||err)+'\nCheck your internet connection and try again. This test needs a modern browser with WebAssembly support.');}
+ finally{busy=false;$('detect').disabled=false}
+});
+$('size').addEventListener('input',()=>{$('sizeval').textContent=$('size').value;draw()});
+$('reset').addEventListener('click',()=>{selected.clear();$('choices').querySelectorAll('input').forEach(x=>x.checked=false);draw();status('Selection cleared. The clock is now in front of the photo.')});
+$('save').addEventListener('click',()=>{const a=document.createElement('a');a.download='wallpaper-maya-ai-depth-test.png';a.href=canvas.toDataURL('image/png');a.click()});
+</script></body></html>
