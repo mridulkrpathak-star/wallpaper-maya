@@ -20,12 +20,12 @@ textarea{resize:vertical;min-height:70px}input[type=color]{width:48px;height:38p
 .row{display:flex;align-items:center;gap:12px}.row>*{flex:1;min-width:0}.tool-heading{font-weight:700;margin:20px 0 5px;color:#e6d9ff;font-size:14px}
 .actions{margin-top:14px}.actions button{flex:1;min-width:90px;border:0;padding:12px;font-weight:700}.primary{background:var(--accent);color:#171221}.secondary{background:#333149}
 .hint{font-size:12px;line-height:1.5;margin-top:10px}.clock-box{border:1px solid #ffffff20;border-radius:14px;padding:12px;margin-top:12px}
-@media(max-width:760px){main{grid-template-columns:1fr;padding:10px 13px 28px}header{padding:18px 15px 8px}.panel{padding:15px}.preview-wrap{padding:5px 0}canvas#wallpaper{width:min(78vw,300px)}}
+@media(max-width:760px){main{grid-template-columns:1fr;padding:10px 13px 28px}header{padding:18px 15px 8px}.panel{padding:15px}.preview-wrap{padding:5px 0}canvas#wallpaper{width:min(78vw,300px)}.preview-panel{position:sticky;top:0;z-index:30;background:#1b1b2bf5;backdrop-filter:blur(12px);box-shadow:0 10px 28px #0008}.preview-panel h2{margin-bottom:8px}.preview-panel .modes{margin-bottom:8px}.preview-panel .preview-wrap{padding:3px 0}.preview-panel canvas#wallpaper{height:min(27vh,230px);width:auto;max-width:100%;aspect-ratio:1080/2340;border-width:3px}.preview-panel #dimensionNote{margin-top:5px}}
 </style></head>
 <body>
 <header><h1>✦ Wallpaper Maya</h1><p>Your screen. Your style. Your creation.</p></header>
 <main>
-<section class="panel"><h2>Live preview</h2>
+<section class="panel preview-panel"><h2>Live preview</h2>
 <div class="modes"><button id="homeBtn" class="active">Home screen</button><button id="lockBtn">Lock screen</button></div>
 <div class="preview-wrap"><canvas id="wallpaper" width="1080" height="2340"></canvas></div>
 <div class="hint" id="dimensionNote">Preview updates as you edit.</div>
